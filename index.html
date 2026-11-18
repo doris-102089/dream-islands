@@ -61,6 +61,8 @@ for(let i=0;i<2600;i++){
 }
 const starGeo=new THREE.BufferGeometry();starGeo.setAttribute('position',new THREE.Float32BufferAttribute(starPositions,3));starGeo.setAttribute('color',new THREE.Float32BufferAttribute(starColors,3));
 const stars=new THREE.Points(starGeo,new THREE.PointsMaterial({size:2.3,vertexColors:true,transparent:true,opacity:.95,sizeAttenuation:false}));scene.add(stars);
+// Extra distant star clusters add depth to the night sky.
+for(let layer=0;layer<3;layer++){const pts=[];for(let i=0;i<420;i++){const a=rand(0,Math.PI*2),r=rand(380,1050);pts.push(Math.cos(a)*r,rand(100,650),Math.sin(a)*r);}const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));scene.add(new THREE.Points(g,new THREE.PointsMaterial({color:layer===1?0xb8caff:0xe5dcff,size:layer===1?1.6:1.1,transparent:true,opacity:.48,sizeAttenuation:false})));}
 // Milky-way ribbon of tiny stars
 const dustPos=[];
 for(let i=0;i<1900;i++){const t=rand(-1,1),a=rand(-1,1);dustPos.push(t*650,210+a*48+Math.sin(t*5)*32,-430+t*170);}
@@ -117,12 +119,44 @@ for(let i=0;i<95;i++){
  for(let j=0;j<count;j++){const s=rand(.45,1.35),m=addMesh(new THREE.DodecahedronGeometry(s,1),rockMats[(i+j)%3],x+rand(-2.8,2.8),y+s*.45,z+rand(-2.8,2.8),rand(.8,1.5),rand(.55,1.1),rand(.8,1.4));m.rotation.set(rand(0,1),rand(0,6),rand(0,1));}
 }
 
-// Moonfall waterfall: cliff face, water ribbon, pool and mist
+// Moonfall waterfall v2: a curved, segmented water sheet that hugs the cliff face.
 const cliffX=175,cliffZ=-115,cliffY=heightAt(cliffX,cliffZ);
-for(let i=0;i<7;i++){const rock=addMesh(new THREE.DodecahedronGeometry(rand(8,14),1),rockMats[i%3],cliffX+rand(-18,18),cliffY+rand(9,23),cliffZ+rand(-14,14),1.1,rand(1.1,1.8),.9);rock.rotation.y=rand(0,6);}
-const fall=new THREE.Mesh(new THREE.PlaneGeometry(19,42,1,1),new THREE.MeshStandardMaterial({color:0x9ceaff,emissive:0x3a9fce,emissiveIntensity:.65,transparent:true,opacity:.76,side:THREE.DoubleSide,roughness:.2}));fall.position.set(cliffX,cliffY+5,cliffZ+15);scene.add(fall);
-const pool=new THREE.Mesh(new THREE.CircleGeometry(25,48),new THREE.MeshStandardMaterial({color:0x48b9d2,emissive:0x123f65,emissiveIntensity:.35,transparent:true,opacity:.85,roughness:.18}));pool.rotation.x=-Math.PI/2;pool.position.set(cliffX,cliffY-1,cliffZ+38);pool.scale.set(1.5,.85,1);scene.add(pool);
-for(let i=0;i<28;i++){const mist=new THREE.Mesh(new THREE.SphereGeometry(rand(1.4,3.4),8,7),new THREE.MeshBasicMaterial({color:0xc9eaff,transparent:true,opacity:.13}));mist.position.set(cliffX+rand(-25,25),cliffY+rand(0,13),cliffZ+rand(24,52));mist.scale.y=.7;scene.add(mist);}
+for(let i=0;i<11;i++){
+ const a=i/11*Math.PI*2,rx=rand(12,22),rz=rand(9,17),x=cliffX+Math.cos(a)*rx,z=cliffZ+Math.sin(a)*rz;
+ const rock=addMesh(new THREE.DodecahedronGeometry(rand(8,14),1),rockMats[i%3],x,cliffY+rand(8,25),z,1.1,rand(1.1,1.8),.9);rock.rotation.y=rand(0,6);
+}
+const waterMat=new THREE.MeshPhysicalMaterial({color:0x9ceaff,emissive:0x287da8,emissiveIntensity:.42,transparent:true,opacity:.79,roughness:.12,metalness:.05,clearcoat:1,clearcoatRoughness:.08,side:THREE.DoubleSide,depthWrite:false});
+function makeCliffWater(offset=0,width=7){
+ const rows=34,cols=8,vertices=[],indices=[];
+ for(let j=0;j<=rows;j++){
+  const t=j/rows;
+  for(let i=0;i<=cols;i++){
+   const u=i/cols-.5,flowX=cliffX+Math.sin(t*5.2+offset)*2.2+u*width;
+   const flowY=cliffY+24-t*27+Math.sin(t*18+u*4+offset)*.28;
+   const faceZ=cliffZ+8+t*30+Math.sin(t*4+offset)*1.1-Math.max(0,Math.abs(u)-.34)*2.5;
+   vertices.push(flowX,flowY,faceZ);
+  }
+ }
+ for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){const a=j*(cols+1)+i,b=a+cols+1;indices.push(a,b,a+1,b,b+1,a+1);}
+ const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));g.setIndex(indices);g.computeVertexNormals();
+ const mesh=new THREE.Mesh(g,waterMat);mesh.material=waterMat;mesh.userData.flowOffset=offset;scene.add(mesh);return mesh;
+}
+const falls=[makeCliffWater(0,8.5),makeCliffWater(2.1,4.2),makeCliffWater(4.3,3.1)];
+// A shallow pool whose shoreline follows the same rolling terrain instead of a floating flat disc.
+const poolGeo=new THREE.CircleGeometry(27,64,0,Math.PI*2);poolGeo.rotateX(-Math.PI/2);
+const pp=poolGeo.attributes.position;
+for(let i=0;i<pp.count;i++){
+ const x=cliffX+pp.getX(i)*1.48,z=cliffZ+38+pp.getZ(i)*.88;
+ pp.setXYZ(i,pp.getX(i)*1.48,heightAt(x,z)-.48-(1-Math.min(1,Math.hypot(pp.getX(i),pp.getZ(i))/27))*.15,pp.getZ(i)*.88);
+}
+poolGeo.computeVertexNormals();
+const pool=new THREE.Mesh(poolGeo,new THREE.MeshPhysicalMaterial({color:0x48b9d2,emissive:0x123f65,emissiveIntensity:.3,transparent:true,opacity:.78,roughness:.12,metalness:.08,clearcoat:1,side:THREE.DoubleSide,depthWrite:false}));pool.position.set(cliffX,0,cliffZ+38);scene.add(pool);
+// Foam at the impact edge and soft spray around the base.
+for(let i=0;i<34;i++){
+ const a=i/34*Math.PI*2,r=rand(14,30),x=cliffX+Math.cos(a)*r,z=cliffZ+38+Math.sin(a)*r*.65,y=heightAt(x,z)+.12;
+ const foam=addMesh(new THREE.SphereGeometry(rand(.35,.9),8,6),new THREE.MeshBasicMaterial({color:0xc8f4ff,transparent:true,opacity:.38}),x,y,z,rand(1.2,2.4),.22,rand(.8,1.5));foam.castShadow=false;
+}
+for(let i=0;i<42;i++){const mist=new THREE.Mesh(new THREE.SphereGeometry(rand(1.2,3.2),8,7),new THREE.MeshBasicMaterial({color:0xc9eaff,transparent:true,opacity:.12}));mist.position.set(cliffX+rand(-27,27),cliffY+rand(-2,16),cliffZ+rand(24,55));mist.scale.y=.7;scene.add(mist);}
 for(let i=0;i<13;i++){const crystal=addMesh(new THREE.OctahedronGeometry(rand(.8,1.8)),new THREE.MeshStandardMaterial({color:0x9cecff,emissive:0x3daddd,emissiveIntensity:1.2,roughness:.2}),cliffX+rand(-27,27),cliffY+rand(2,18),cliffZ+rand(-8,44));}
 
 // Winding stream reflecting the moonlight
@@ -214,7 +248,7 @@ renderer.domElement.addEventListener('pointermove',e=>{if(dragging){yaw-=(e.clie
 renderer.domElement.addEventListener('pointerup',()=>dragging=false);renderer.domElement.addEventListener('pointercancel',()=>dragging=false);
 addEventListener('keydown',e=>{if(e.key==='w'||e.key==='ArrowUp')moveZ=-1;if(e.key==='s'||e.key==='ArrowDown')moveZ=1;if(e.key==='a'||e.key==='ArrowLeft')moveX=-1;if(e.key==='d'||e.key==='ArrowRight')moveX=1;if(e.code==='Space'&&onGround){vy=12;onGround=false;}});
 addEventListener('keyup',e=>{if(['w','s','ArrowUp','ArrowDown'].includes(e.key))moveZ=0;if(['a','d','ArrowLeft','ArrowRight'].includes(e.key))moveX=0;});
-const zone=document.querySelector('#zone'),clock=new THREE.Clock();
+const zone=document.querySelector('#zone'),clock=new THREE.Clock(),worldClock=new THREE.Clock();
 function animate(){
  requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.04);
  const forward=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw)),right=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
@@ -245,7 +279,7 @@ function animate(){
  else if(Math.hypot(x+255,z-235)<85)zone.textContent='古代星門遺跡';
  else if(Math.hypot(x-275,z+235)<85)zone.textContent='雲海港灣';
  else zone.textContent='夢境草原・月光之境';
- stars.rotation.y+=dt*.0008;renderer.render(scene,camera);
+ stars.rotation.y+=dt*.0008;falls.forEach((f,i)=>{const a=f.geometry.attributes.position;for(let k=0;k<a.count;k++){const x=a.getX(k),y=a.getY(k),z=a.getZ(k);a.setX(k,x+Math.sin(worldClock.elapsedTime*2.2+y*.22+i)*.018);a.setZ(k,z+Math.sin(worldClock.elapsedTime*2.8+y*.3+i)*.025);}a.needsUpdate=true;});renderer.render(scene,camera);
 }
 animate();document.querySelector('#loading').style.display='none';
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
