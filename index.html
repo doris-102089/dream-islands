@@ -51,7 +51,13 @@ const flowerMats=[mat(0xffe8ae),mat(0xf3b6d1),mat(0xbfc6ff),mat(0xffffff)];
 const rand=(a,b)=>a+Math.random()*(b-a);
 const blockers=[];
 function block(x,z,r){blockers.push({x,z,r});}
-function heightAt(x,z){return 4+Math.sin(x*.021+Math.cos(z*.017))*1.8+Math.sin(z*.037-x*.013)*1.1+Math.cos((x+z)*.012)*2.3+Math.sin(x*.008)*2+Math.max(0,1-Math.abs(x-170)/150)*Math.max(0,1-Math.abs(z+115)/190)*28;}
+function heightAt(x,z){
+ const base=4+Math.sin(x*.021+Math.cos(z*.017))*1.8+Math.sin(z*.037-x*.013)*1.1+Math.cos((x+z)*.012)*2.3+Math.sin(x*.008)*2+Math.max(0,1-Math.abs(x-170)/150)*Math.max(0,1-Math.abs(z+115)/190)*28;
+ // A broad, gently levelled natural basin lets the harbor water meet the shore.
+ const d=Math.hypot(x-275,z+235),blend=1-THREE.MathUtils.smoothstep(d,43,76);
+ const harborLevel=base*.25+3.0;
+ return THREE.MathUtils.lerp(base,harborLevel,blend);
+}
 function addMesh(geo,material,x,y,z,sx=1,sy=1,sz=1){const m=new THREE.Mesh(geo,material);m.position.set(x,y,z);m.scale.set(sx,sy,sz);m.castShadow=true;m.receiveShadow=true;scene.add(m);return m;}
 
 // Rich midnight sky: stars, Milky Way dust, moon and halo
@@ -187,11 +193,36 @@ for(let i=0;i<55;i++){const x=275+rand(-38,38),z=225+rand(-30,30),y=heightAt(x,z
 for(let i=0;i<9;i++){const a=i/9*Math.PI*2,x=-255+Math.cos(a)*27,z=235+Math.sin(a)*27,y=heightAt(x,z);const h=rand(7,13);const col=addMesh(new THREE.CylinderGeometry(1.6,2.1,h,8),mat(0x8d8290),x,y+h/2,z);col.rotation.z=rand(-.12,.12);block(x,z,3.2);}
 const ruinTop=addMesh(new THREE.BoxGeometry(42,3,5),mat(0xa99a9b),-255,heightAt(-255,208)+13,208);ruinTop.rotation.z=.08;
 for(let i=0;i<24;i++){const x=-255+rand(-34,34),z=235+rand(-34,34),y=heightAt(x,z);addMesh(new THREE.DodecahedronGeometry(rand(1.2,3),1),mat(0x7f7788),x,y+1,z,1.4,.7,1);}
-// Cloud harbor: floating lanterns, pale arches and a reflecting pool
-const harborY=heightAt(275,-235);
-for(let i=0;i<3;i++){const x=245+i*30,z=-235;const arch=addMesh(new THREE.TorusGeometry(10,1.2,8,28,Math.PI),mat(0x9bb7d8),x,harborY+10,z);arch.rotation.z=Math.PI;block(x,z,3);}
-const harborPool=addMesh(new THREE.CircleGeometry(17,40),new THREE.MeshStandardMaterial({color:0x6abbd7,emissive:0x174f77,emissiveIntensity:.45,transparent:true,opacity:.82,roughness:.2}),275,harborY+.2,-235);harborPool.rotation.x=-Math.PI/2;harborPool.scale.set(1.4,1,1);
-for(let i=0;i<20;i++){const x=275+rand(-28,28),z=-235+rand(-25,25),y=harborY+rand(8,25);const orb=addMesh(new THREE.SphereGeometry(.55,10,8),new THREE.MeshStandardMaterial({color:0xffe5ae,emissive:0xffc56d,emissiveIntensity:1.8}),x,y,z);const light=new THREE.PointLight(0xffd28b,.35,12);light.position.copy(orb.position);scene.add(light);}
+// Cloud Sea Harbor: a wide moonlit bay, wooden piers, boats and a deep sea of clouds.
+const harborX=275,harborZ=-235,harborY=heightAt(harborX,harborZ);
+const harborWaterMat=new THREE.MeshPhysicalMaterial({color:0x287f9f,emissive:0x0b344e,emissiveIntensity:.48,transparent:true,opacity:.88,roughness:.16,metalness:.12,clearcoat:1,clearcoatRoughness:.08,side:THREE.DoubleSide,depthWrite:false});
+// Broad oval water basin; the terrain beneath is gently flattened so the water joins the shoreline.
+const bayGeo=new THREE.PlaneGeometry(118,82,44,32);bayGeo.rotateX(-Math.PI/2);
+const bp=bayGeo.attributes.position;
+for(let i=0;i<bp.count;i++){const lx=bp.getX(i),lz=bp.getZ(i);bp.setY(i,harborY+.18+Math.sin(lx*.09+lz*.05)*.10);}
+bayGeo.computeVertexNormals();const harborBay=new THREE.Mesh(bayGeo,harborWaterMat);harborBay.position.set(harborX,0,harborZ);scene.add(harborBay);
+// Moonlight streaks and small ripples across the bay.
+const rippleMat=new THREE.MeshBasicMaterial({color:0xb9eaff,transparent:true,opacity:.24});
+const harborRipples=[];for(let i=0;i<34;i++){const x=harborX+rand(-48,48),z=harborZ+rand(-31,31),y=harborY+.34;const r=addMesh(new THREE.TorusGeometry(rand(1.2,3.8),.055,5,24),rippleMat,x,y,z);r.rotation.x=Math.PI/2;r.scale.x=rand(1.2,2.8);r.userData.phase=rand(0,6.28);harborRipples.push(r);}
+// Wooden piers with posts and warm lanterns.
+const pierMat=mat(0x755b52),postMat=mat(0x493f49);
+function makePier(x,z,length,angle=0){const deck=addMesh(new THREE.BoxGeometry(length,1.0,5.2),pierMat,x,harborY+1.15,z);deck.rotation.y=angle;for(let k=-1;k<=1;k+=2){for(let j=0;j<Math.ceil(length/7);j++){const along=-length/2+j*7;const px=x+Math.cos(angle)*along+Math.sin(angle)*k*2.1,pz=z-Math.sin(angle)*along+Math.cos(angle)*k*2.1;addMesh(new THREE.CylinderGeometry(.28,.38,4.5,7),postMat,px,harborY-1.0,pz);}}}
+makePier(275,-190,58,0);makePier(236,-226,38,Math.PI/2);makePier(314,-222,34,Math.PI/2);
+// Small moored boats, simple but recognizable silhouettes.
+const boatMat=mat(0x604b55),sailMat=new THREE.MeshStandardMaterial({color:0xd9e5ed,roughness:.85,side:THREE.DoubleSide});
+for(let i=0;i<3;i++){const bx=harborX-27+i*25,bz=harborZ+14+(i%2)*15;const hull=addMesh(new THREE.CapsuleGeometry(2.2,7,4,8),boatMat,bx,harborY+.85,bz,1,.32,1);hull.rotation.y=.25+i*.3;const mast=addMesh(new THREE.CylinderGeometry(.12,.16,8,6),postMat,bx,harborY+5,bz);const sail=addMesh(new THREE.PlaneGeometry(4.2,5.6),sailMat,bx+1.9,harborY+5.3,bz);sail.rotation.y=-.3;}
+// A luminous arch at the end of the main pier.
+for(let i=0;i<3;i++){const x=250+i*25,z=-268;const arch=addMesh(new THREE.TorusGeometry(9,1.1,8,28,Math.PI),mat(0x9bb7d8),x,harborY+10,z);arch.rotation.z=Math.PI;}
+for(let i=0;i<24;i++){const x=harborX+rand(-48,48),z=harborZ+rand(-35,35),y=harborY+rand(8,23);const orb=addMesh(new THREE.SphereGeometry(.48,10,8),new THREE.MeshStandardMaterial({color:0xffe5ae,emissive:0xffc56d,emissiveIntensity:2}),x,y,z);const light=new THREE.PointLight(0xffd28b,.42,15);light.position.copy(orb.position);scene.add(light);}
+// Vast layered cloud ocean below the harbor cliffs: soft moonlit cloud banks with drifting tops.
+const cloudSea=new THREE.Group();scene.add(cloudSea);
+const cloudSeaMats=[0x899ac4,0xabb8d8,0x667da9].map((c,i)=>new THREE.MeshStandardMaterial({color:c,emissive:i===1?0x26365c:0x111d42,emissiveIntensity:.24,transparent:true,opacity:i===1?.42:.34,roughness:1,depthWrite:false}));
+for(let layer=0;layer<3;layer++){
+ const y=harborY-18-layer*13,radX=layer===0?175:layer===1?230:285,radZ=layer===0?125:layer===1?180:230;
+ for(let i=0;i<46;i++){const a=rand(0,Math.PI*2),r=Math.sqrt(Math.random()),g=new THREE.Group();for(let j=0;j<5;j++){const puff=new THREE.Mesh(new THREE.SphereGeometry(rand(9,19),10,8),cloudSeaMats[layer]);puff.position.set(rand(-13,13),rand(-2,2),rand(-9,9));puff.scale.set(1.25,.58,1);g.add(puff);}g.position.set(harborX+Math.cos(a)*r*radX,y+rand(-3,3),harborZ+Math.sin(a)*r*radZ);cloudSea.add(g);g.userData.phase=rand(0,6.28);}
+}
+// Summer-night fireflies above the harbor path.
+const harborFireflies=[];for(let i=0;i<32;i++){const f=addMesh(new THREE.SphereGeometry(.22,7,6),new THREE.MeshBasicMaterial({color:0xffe6a0,transparent:true,opacity:.85}),harborX+rand(-75,75),harborY+rand(3,18),harborZ+rand(-60,60));f.userData={phase:rand(0,6.28),baseY:f.position.y};harborFireflies.push(f);}
 
 // Local atmosphere for Moon-mist Garden: layered low fog, moonlit motes and butterflies.
 const gardenFog=new THREE.Group();scene.add(gardenFog);
@@ -267,19 +298,21 @@ function setAmbienceScene(x,z){
  const waterfall=Math.hypot(x-cliffX,z-cliffZ)<95;
  const garden=Math.hypot(x+245,z+235)<105;
  const cave=Math.hypot(x-275,z-225)<90;
- const sceneKey=waterfall?'waterfall':garden?'garden':cave?'cave':'meadow';
+ const harbor=Math.hypot(x-275,z+235)<110;
+ const sceneKey=waterfall?'waterfall':garden?'garden':cave?'cave':harbor?'harbor':'meadow';
  if(sceneKey===lastAmbienceScene)return;lastAmbienceScene=sceneKey;
  const t=ambienceContext.currentTime;
  const profile=waterfall?{wind:.20,water:.95,waterLow:.82,insects:.04,hum:.04,crystal:.02,chime:.04,bird:.01}
  :garden?{wind:.48,water:.08,waterLow:.04,insects:.78,hum:.04,crystal:.10,chime:.42,bird:.08}
  :cave?{wind:.04,water:.18,waterLow:.12,insects:.01,hum:.92,crystal:.82,chime:.38,bird:0}
+ :harbor?{wind:.30,water:.92,waterLow:.68,insects:.18,hum:.06,crystal:.08,chime:.20,bird:.72}
  :{wind:.60,water:.06,waterLow:.02,insects:.12,hum:.04,crystal:.04,chime:.12,bird:.42};
  for(const [key,value] of Object.entries(profile)){const layer=ambienceLayers[key];if(layer)layer.gain.gain.setTargetAtTime(layer.base*value,t,1.25);}
- if(ambienceLayers.hum)ambienceLayers.hum.osc.frequency.setTargetAtTime(cave?72:(garden?112:waterfall?94:86),t,1.6);
+ if(ambienceLayers.hum)ambienceLayers.hum.osc.frequency.setTargetAtTime(cave?72:(garden?112:waterfall?94:harbor?118:86),t,1.6);
  if(ambienceLayers.crystal)ambienceLayers.crystal.osc.frequency.setTargetAtTime(cave?294:(garden?523:392),t,1.6);
- if(ambienceLayers.chime)ambienceLayers.chime.osc.frequency.setTargetAtTime(cave?440:(garden?784:waterfall?587:660),t,1.6);
+ if(ambienceLayers.chime)ambienceLayers.chime.osc.frequency.setTargetAtTime(cave?440:(garden?784:waterfall?587:harbor?698:660),t,1.6);
  if(ambienceLayers.bird)ambienceLayers.bird.osc.frequency.setTargetAtTime(meadowFrequency(),t,1.6);
- function meadowFrequency(){return waterfall?900:garden?1040:cave?520:1180;}
+ function meadowFrequency(){return waterfall?900:garden?1040:cave?520:harbor?820:1180;}
 }
 ambienceButton.addEventListener('click',async()=>{
  if(!ambienceStarted&&!startAmbience())return;
@@ -381,10 +414,13 @@ function animate(){
  gardenFog.children.forEach((o,i)=>{if(o.userData.baseY!==undefined){o.position.x+=Math.sin(worldClock.elapsedTime*.18+i)*dt*.7;o.position.y=o.userData.baseY+Math.sin(worldClock.elapsedTime*.45+i)*.45;}});
  butterflies.forEach((b,i)=>{const u=b.userData;b.position.x=u.origin.x+Math.sin(worldClock.elapsedTime*.42+u.phase)*5;b.position.y=u.origin.y+Math.sin(worldClock.elapsedTime*.9+u.phase)*1.8;b.position.z=u.origin.z+Math.cos(worldClock.elapsedTime*.35+u.phase)*4;u.left.rotation.z=Math.sin(worldClock.elapsedTime*11+u.phase)*.65;u.right.rotation.z=-Math.sin(worldClock.elapsedTime*11+u.phase)*.65;});
  caveDust.forEach((m,i)=>{m.position.y=caveY+4+((worldClock.elapsedTime*1.2+i*2.3)%20);m.position.x+=Math.sin(worldClock.elapsedTime*.4+i)*dt*.22;});
- const inGarden=Math.hypot(x+245,z+235)<92,inCave=Math.hypot(x-275,z-225)<72;
+ const inGarden=Math.hypot(x+245,z+235)<92,inCave=Math.hypot(x-275,z-225)<72,inHarbor=Math.hypot(x-275,z+235)<110;
  setAmbienceScene(x,z);
  gardenGlow.intensity=inGarden?1.65:.25;caveShade.intensity=inCave?.95:.18;
- scene.fog.density=inCave?.0022:(inGarden?.00155:.00072);
+ scene.fog.density=inCave?.0022:(inGarden?.00155:(inHarbor?.00095:.00072));
+ harborRipples.forEach((r,i)=>{r.scale.x=1.2+Math.sin(worldClock.elapsedTime*.8+r.userData.phase)*.18;r.material.opacity=.15+Math.max(0,Math.sin(worldClock.elapsedTime*1.2+r.userData.phase))*.16;});
+ cloudSea.children.forEach((g,i)=>{g.position.x+=Math.sin(worldClock.elapsedTime*.08+g.userData.phase)*dt*.7;g.position.z+=Math.cos(worldClock.elapsedTime*.07+g.userData.phase)*dt*.45;});
+ harborFireflies.forEach((f)=>{f.position.y=f.userData.baseY+Math.sin(worldClock.elapsedTime*1.4+f.userData.phase)*1.2;f.material.opacity=.25+.65*(.5+.5*Math.sin(worldClock.elapsedTime*2+f.userData.phase));});
  stars.rotation.y+=dt*.0008;falls.forEach((f,i)=>{const a=f.geometry.attributes.position;for(let k=0;k<a.count;k++){const x=a.getX(k),y=a.getY(k),z=a.getZ(k);a.setX(k,x+Math.sin(worldClock.elapsedTime*2.2+y*.22+i)*.018);a.setZ(k,z+Math.sin(worldClock.elapsedTime*2.8+y*.3+i)*.025);}a.needsUpdate=true;});renderer.render(scene,camera);
 }
 animate();document.querySelector('#loading').style.display='none';
