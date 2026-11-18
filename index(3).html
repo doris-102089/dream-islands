@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>夢境群島 Dream Islands｜夢境草原</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#9edcf2;font-family:system-ui,"Noto Sans TC",sans-serif;touch-action:none}
+#game{position:fixed;inset:0}canvas{display:block}
+#title{position:fixed;top:14px;left:14px;color:#fff;text-shadow:0 2px 8px #315d68;font-weight:800;font-size:18px;letter-spacing:1px;pointer-events:none}
+#hint{position:fixed;top:43px;left:15px;color:#fff;text-shadow:0 2px 6px #315d68;font-size:12px;pointer-events:none}
+#joystick{position:fixed;left:22px;bottom:25px;width:116px;height:116px;border-radius:50%;background:#ffffff30;border:2px solid #ffffff75;touch-action:none}
+#stick{position:absolute;left:33px;top:33px;width:46px;height:46px;border-radius:50%;background:#fff9;border:2px solid white;box-shadow:0 3px 12px #477b8066}
+#jump{position:fixed;right:25px;bottom:36px;width:68px;height:68px;border-radius:50%;border:2px solid #fff;background:#ffffff55;color:#fff;font-weight:800;font-size:15px}
+#home{position:fixed;right:22px;top:16px;border:1px solid #fff9;border-radius:20px;padding:9px 13px;background:#ffffff55;color:#fff;font-weight:700}
+#zone{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);padding:7px 13px;border-radius:20px;background:#ffffff50;color:white;text-shadow:0 1px 5px #345;font-size:12px;white-space:nowrap;pointer-events:none}
+#loading{position:fixed;inset:0;display:grid;place-items:center;background:linear-gradient(#8bd2ee,#d5f1df);color:#fff;font-size:20px;font-weight:800;z-index:5;text-shadow:0 2px 8px #456}
+</style>
+</head>
+<body>
+<div id="game"></div>
+<div id="loading">正在生成夢境草原……</div>
+<div id="title">夢境群島</div>
+<div id="hint">Dream Islands · 自由探索</div>
+<button id="home">回到起點</button>
+<div id="joystick"><div id="stick"></div></div>
+<button id="jump">跳躍</button>
+<div id="zone">夢境草原・晨光之境</div>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+
+const mount=document.querySelector('#game');
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x9bdcf2);
+scene.fog=new THREE.FogExp2(0xb9e7e9,0.00095);
+const camera=new THREE.PerspectiveCamera(62,innerWidth/innerHeight,.1,1800);
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));
+renderer.setSize(innerWidth,innerHeight);
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+mount.appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0xe6f8ff,0x66865d,2.0));
+const sun=new THREE.DirectionalLight(0xfff2d6,2.1);sun.position.set(-180,260,120);sun.castShadow=true;
+sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-260;sun.shadow.camera.right=260;sun.shadow.camera.top=260;sun.shadow.camera.bottom=-260;scene.add(sun);
+
+const mat=(c,rough=1)=>new THREE.MeshStandardMaterial({color:c,roughness:rough});
+const grassMat=mat(0x8fca78),rockMat=mat(0x82958d),darkRock=mat(0x607b79),woodMat=mat(0x8b6346),leafMats=[mat(0x4f9b69),mat(0x69ad70),mat(0x83bd78)];
+const waterMat=new THREE.MeshStandardMaterial({color:0x54c5d2,roughness:.22,metalness:.08,transparent:true,opacity:.86});
+const flowerMats=[mat(0xffe8a0),mat(0xffb8c9),mat(0xcab7ff),mat(0xffffff)];
+const rand=(a,b)=>a+Math.random()*(b-a);
+function noise(x,z){return (Math.sin(x*.021+Math.cos(z*.017))*1.8+Math.sin(z*.037-x*.013)*1.1+Math.cos((x+z)*.012)*2.3+Math.sin(x*.08)*.25);}
+function heightAt(x,z){
+ const hills=noise(x,z);
+ const ridge=Math.max(0,1-Math.abs(x+90)/145)*Math.max(0,1-Math.abs(z-110)/250);
+ const hills2=Math.max(0,1-Math.abs(x-190)/170)*Math.max(0,1-Math.abs(z+120)/210);
+ return 5+hills+ridge*34+hills2*25+Math.sin(x*.008)*2;
+}
+function makeTerrain(){
+ const size=760, seg=230, geo=new THREE.PlaneGeometry(size,size,seg,seg);geo.rotateX(-Math.PI/2);
+ const p=geo.attributes.position;
+ const colors=[];
+ const c1=new THREE.Color(0x8fca78),c2=new THREE.Color(0x6d9f68),c3=new THREE.Color(0xb6aa85),c4=new THREE.Color(0x829b9b);
+ for(let i=0;i<p.count;i++){
+  const x=p.getX(i),z=p.getZ(i),h=heightAt(x,z);p.setY(i,h);
+  let c=c1.clone();if(h>19)c.lerp(c2,.45);if(h>31)c.lerp(c3,.28);
+  const patch=Math.sin(x*.035)*Math.cos(z*.03);if(patch>.65)c.lerp(c4,.22);
+  colors.push(c.r,c.g,c.b);
+ }
+ geo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));geo.computeVertexNormals();
+ const terrain=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1}));
+ terrain.receiveShadow=true;terrain.castShadow=false;scene.add(terrain);
+}
+makeTerrain();
+
+// Far mountain silhouettes
+for(let i=0;i<38;i++){
+ const a=i/38*Math.PI*2,r=510+rand(-35,45),x=Math.cos(a)*r,z=Math.sin(a)*r;
+ const h=rand(65,150),m=new THREE.Mesh(new THREE.ConeGeometry(rand(25,48),h,7),mat(i%3?0x8aaeb0:0xa4c5c0));
+ m.position.set(x,h/2-4,z);m.rotation.y=rand(0,6);scene.add(m);
+}
+
+// Instanced trees keep the world detailed but phone-friendly
+const trunkGeo=new THREE.CylinderGeometry(.45,.8,7,7);
+const crownGeo=new THREE.ConeGeometry(5.5,13,8);
+const trunkInst=new THREE.InstancedMesh(trunkGeo,woodMat,720);
+const crownInst=leafMats.map(m=>new THREE.InstancedMesh(crownGeo,m,720));
+const dummy=new THREE.Object3D();let treeCount=0;
+for(let i=0;i<720;i++){
+ const x=rand(-350,350),z=rand(-350,350);
+ if(Math.hypot(x,z)<32||Math.hypot(x-175,z+115)<48)continue;
+ const y=heightAt(x,z),s=rand(.65,1.55);
+ dummy.position.set(x,y+3.5*s,z);dummy.scale.set(s,s,s);dummy.rotation.y=rand(0,6);dummy.updateMatrix();
+ trunkInst.setMatrixAt(treeCount,dummy.matrix);
+ crownInst[i%3].setMatrixAt(treeCount,dummy.matrix);
+ treeCount++;
+}
+trunkInst.count=treeCount;trunkInst.castShadow=true;scene.add(trunkInst);
+crownInst.forEach(m=>{m.count=treeCount;m.castShadow=true;scene.add(m)});
+
+// Flower fields
+const flowerGeo=new THREE.Group();
+for(let i=0;i<520;i++){
+ const x=rand(-340,340),z=rand(-340,340);if(Math.hypot(x,z)<24)continue;
+ const y=heightAt(x,z);
+ const stem=new THREE.Mesh(new THREE.CylinderGeometry(.045,.06,.65,5),mat(0x4d9259));
+ stem.position.set(x,y+.32,z);
+ const bloom=new THREE.Mesh(new THREE.SphereGeometry(.22,7,6),flowerMats[i%4]);
+ bloom.position.set(x,y+.72,z);
+ flowerGeo.add(stem,bloom);
+}
+scene.add(flowerGeo);
+
+// Natural rock clusters
+for(let i=0;i<180;i++){
+ const x=rand(-350,350),z=rand(-350,350),y=heightAt(x,z);
+ const g=new THREE.DodecahedronGeometry(rand(1.2,4.2),1);
+ const r=new THREE.Mesh(g,i%4===0?darkRock:rockMat);r.position.set(x,y+1,z);r.scale.y=rand(.5,1.5);r.rotation.set(rand(0,1),rand(0,6),rand(0,1));r.castShadow=true;scene.add(r);
+}
+
+// A winding river with a broad lake
+const lake=new THREE.Mesh(new THREE.CircleGeometry(38,64),waterMat);lake.rotation.x=-Math.PI/2;lake.position.set(-145, heightAt(-145,55)+.5,55);lake.scale.set(1.35,.75,1);scene.add(lake);
+for(let i=0;i<28;i++){
+ const z=-180+i*12,x=90+Math.sin(i*.22)*34;
+ const seg=new THREE.Mesh(new THREE.CylinderGeometry(2.2,2.8,12,8),waterMat);
+ seg.position.set(x,heightAt(x,z)+.35,z);seg.rotation.z=Math.PI/2;seg.rotation.y=.35;scene.add(seg);
+}
+
+// Ancient stone arch landmark
+const archGroup=new THREE.Group();
+for(let i=0;i<2;i++){const col=new THREE.Mesh(new THREE.CylinderGeometry(2.1,2.7,17,8),darkRock);col.position.set(i*15-7.5,8.5,0);col.castShadow=true;archGroup.add(col);}
+const lintel=new THREE.Mesh(new THREE.BoxGeometry(21,4,5),rockMat);lintel.position.set(0,18,0);archGroup.add(lintel);
+archGroup.position.set(175,heightAt(175,-115),-115);scene.add(archGroup);
+
+// Floating glowing crystals at the landmark
+for(let i=0;i<9;i++){const crystal=new THREE.Mesh(new THREE.OctahedronGeometry(rand(1.2,2.5)),new THREE.MeshStandardMaterial({color:0x9cf6ef,emissive:0x3abbb2,emissiveIntensity:1.5,roughness:.25}));crystal.position.set(175+rand(-24,24),heightAt(175,-115)+rand(4,12),-115+rand(-22,22));scene.add(crystal);}
+
+// Soft clouds
+const cloudMat=new THREE.MeshStandardMaterial({color:0xffffff,transparent:true,opacity:.82,roughness:1});
+for(let i=0;i<32;i++){const g=new THREE.Group();const x=rand(-520,520),z=rand(-520,520),y=rand(75,145);
+ for(let j=0;j<5;j++){const puff=new THREE.Mesh(new THREE.SphereGeometry(rand(7,15),10,8),cloudMat);puff.position.set(rand(-13,13),rand(-3,4),rand(-8,8));puff.scale.y=.65;g.add(puff);}
+ g.position.set(x,y,z);scene.add(g);}
+
+// Character
+const player=new THREE.Group();
+const bodyMat=mat(0x354b57),capeMat=new THREE.MeshStandardMaterial({color:0xffd98c,side:THREE.DoubleSide});
+const body=new THREE.Mesh(new THREE.CapsuleGeometry(1.05,2.3,4,8),bodyMat);body.position.y=2.7;body.castShadow=true;player.add(body);
+const head=new THREE.Mesh(new THREE.SphereGeometry(.9,12,10),mat(0xffdfbd));head.position.y=4.8;player.add(head);
+const scarf=new THREE.Mesh(new THREE.ConeGeometry(1.5,3.5,8),capeMat);scarf.position.set(0,2.8,-1.1);scarf.rotation.x=-Math.PI/2.5;player.add(scarf);
+const legL=new THREE.Mesh(new THREE.CapsuleGeometry(.32,.9,3,6),bodyMat),legR=legL.clone();legL.position.set(-.48,.85,0);legR.position.set(.48,.85,0);player.add(legL,legR);
+player.position.set(0,heightAt(0,0),0);scene.add(player);
+
+// Small glowing guide stones along a winding route
+for(let i=0;i<24;i++){
+ const t=i/23,x=-10+t*230,z=20+Math.sin(t*6)*85,y=heightAt(x,z);
+ const orb=new THREE.Mesh(new THREE.SphereGeometry(.65,8,8),new THREE.MeshStandardMaterial({color:0xfff1ad,emissive:0xffc65b,emissiveIntensity:1.1}));
+ orb.position.set(x,y+2,z);scene.add(orb);
+ const light=new THREE.PointLight(0xffd77c,.6,12);light.position.copy(orb.position);scene.add(light);
+}
+
+let moveX=0,moveZ=0,vy=0,onGround=true,walk=0,yaw=0,pitch=.22;
+const joystick=document.querySelector('#joystick'),stick=document.querySelector('#stick');
+let joyId=null;
+joystick.addEventListener('pointerdown',e=>{joyId=e.pointerId;joystick.setPointerCapture(joyId);updateJoy(e);});
+joystick.addEventListener('pointermove',e=>{if(e.pointerId===joyId)updateJoy(e);});
+function updateJoy(e){const r=joystick.getBoundingClientRect(),dx=e.clientX-(r.left+r.width/2),dy=e.clientY-(r.top+r.height/2),d=Math.hypot(dx,dy),k=Math.min(1, d/43);moveX=dx/(d||1)*k;moveZ=dy/(d||1)*k;stick.style.transform=`translate(${moveX*34}px,${moveZ*34}px)`;}
+function endJoy(e){if(e.pointerId===joyId){joyId=null;moveX=moveZ=0;stick.style.transform='translate(0,0)';}}
+joystick.addEventListener('pointerup',endJoy);joystick.addEventListener('pointercancel',endJoy);
+document.querySelector('#jump').addEventListener('pointerdown',()=>{if(onGround){vy=12;onGround=false;}});
+document.querySelector('#home').addEventListener('click',()=>{player.position.set(0,heightAt(0,0),0);yaw=0;});
+let drag=false,lastX=0,lastY=0;
+renderer.domElement.addEventListener('pointerdown',e=>{if(e.clientX>145&&e.clientY<innerHeight-150){drag=true;lastX=e.clientX;lastY=e.clientY;renderer.domElement.setPointerCapture(e.pointerId);}});
+renderer.domElement.addEventListener('pointermove',e=>{if(drag){yaw-=(e.clientX-lastX)*.005;pitch=THREE.MathUtils.clamp(pitch+(e.clientY-lastY)*.003,-.15,.8);lastX=e.clientX;lastY=e.clientY;}});
+renderer.domElement.addEventListener('pointerup',()=>drag=false);renderer.domElement.addEventListener('pointercancel',()=>drag=false);
+addEventListener('keydown',e=>{if(e.key==='w'||e.key==='ArrowUp')moveZ=-1;if(e.key==='s'||e.key==='ArrowDown')moveZ=1;if(e.key==='a'||e.key==='ArrowLeft')moveX=-1;if(e.key==='d'||e.key==='ArrowRight')moveX=1;if(e.code==='Space'&&onGround){vy=12;onGround=false;}});
+addEventListener('keyup',e=>{if(['w','s','ArrowUp','ArrowDown'].includes(e.key))moveZ=0;if(['a','d','ArrowLeft','ArrowRight'].includes(e.key))moveX=0;});
+
+const zone=document.querySelector('#zone');
+function animate(){
+ requestAnimationFrame(animate);
+ const dt=Math.min(clock.getDelta(),.04);
+ const forward=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw));
+ const right=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
+ const dir=forward.clone().multiplyScalar(-moveZ).add(right.multiplyScalar(moveX));
+ if(dir.lengthSq()>0.001){dir.normalize();player.position.addScaledVector(dir,dt*17);player.rotation.y=Math.atan2(dir.x,dir.z);walk+=dt*11;legL.rotation.x=Math.sin(walk)*.55;legR.rotation.x=-Math.sin(walk)*.55;}
+ const x=player.position.x,z=player.position.z,ground=heightAt(x,z);
+ vy-=28*dt;player.position.y+=vy*dt;
+ if(player.position.y<ground){player.position.y=ground;vy=0;onGround=true;}
+ player.position.x=THREE.MathUtils.clamp(x,-365,365);player.position.z=THREE.MathUtils.clamp(z,-365,365);
+ const target=new THREE.Vector3(player.position.x+Math.sin(yaw)*19,player.position.y+10+pitch*10,player.position.z+Math.cos(yaw)*19);
+ camera.position.lerp(target,.09);camera.lookAt(player.position.x,player.position.y+2.5,player.position.z);
+ if(Math.hypot(x-175,z+115)<55)zone.textContent='遠古遺跡・星光之門';
+ else if(Math.hypot(x+145,z-55)<55)zone.textContent='月光湖・靜謐水岸';
+ else if(Math.hypot(x+220,z+180)<90)zone.textContent='迷霧林地・微光小徑';
+ else zone.textContent='夢境草原・晨光之境';
+ renderer.render(scene,camera);
+}
+const clock=new THREE.Clock();
+animate();
+document.querySelector('#loading').style.display='none';
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+</script>
+</body>
+</html>
