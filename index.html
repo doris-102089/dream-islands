@@ -226,25 +226,60 @@ for(let i=0;i<34;i++){
  const mote=addMesh(new THREE.SphereGeometry(.12,6,5),new THREE.MeshBasicMaterial({color:i%2?0x9ceaff:0xc8baff,transparent:true,opacity:.7}),caveX+rand(-33,33),caveY+rand(2,24),caveZ+rand(-28,28));mote.castShadow=false;caveDust.push(mote);
 }
 
-// Simple local audio controls: the player can choose an audio file from their own device.
+// Local music and richer, location-aware procedural ambience.
 const musicInput=document.querySelector('#musicFile'),musicButton=document.querySelector('#musicBtn');
 const userAudio=new Audio();userAudio.loop=true;userAudio.volume=.42;
 musicButton.addEventListener('click',()=>musicInput.click());
 musicInput.addEventListener('change',()=>{const file=musicInput.files&&musicInput.files[0];if(!file)return;userAudio.src=URL.createObjectURL(file);userAudio.play().then(()=>{musicButton.textContent='🎵 '+file.name.slice(0,12);}).catch(()=>{musicButton.textContent='點一下播放音樂';});});
-const ambienceButton=document.querySelector('#ambienceBtn');let ambienceContext=null,ambienceSource=null,ambienceGain=null,ambienceOn=false;
-ambienceButton.addEventListener('click',async()=>{
- if(!ambienceContext){const AC=window.AudioContext||window.webkitAudioContext;if(!AC){ambienceButton.textContent='此瀏覽器不支援音效';return;}ambienceContext=new AC();
- const buffer=ambienceContext.createBuffer(1,ambienceContext.sampleRate*3,ambienceContext.sampleRate),data=buffer.getChannelData(0);
- for(let i=0;i<data.length;i++)data[i]=(Math.random()*2-1)*.22;
- ambienceSource=ambienceContext.createBufferSource();ambienceSource.buffer=buffer;ambienceSource.loop=true;
- const filter=ambienceContext.createBiquadFilter();filter.type='lowpass';filter.frequency.value=520;
- ambienceGain=ambienceContext.createGain();ambienceGain.gain.value=0;
- ambienceSource.connect(filter);filter.connect(ambienceGain);ambienceGain.connect(ambienceContext.destination);ambienceSource.start();
+const ambienceButton=document.querySelector('#ambienceBtn');
+let ambienceContext=null,ambienceOn=false,ambienceMaster=null,ambienceLayers={},ambienceStarted=false,lastAmbienceScene='';
+function makeNoiseLayer(ctx,kind,volume,cutoff){
+ const buffer=ctx.createBuffer(1,ctx.sampleRate*4,ctx.sampleRate),data=buffer.getChannelData(0);
+ let last=0;for(let i=0;i<data.length;i++){const white=Math.random()*2-1;last=kind==='pink'?(last*.96+white*.04):white;data[i]=kind==='pink'?last*2.6:white*.62;}
+ const src=ctx.createBufferSource();src.buffer=buffer;src.loop=true;
+ const filter=ctx.createBiquadFilter();filter.type=kind==='water'?'bandpass':'lowpass';filter.frequency.value=cutoff;filter.Q.value=kind==='water'?.55:.35;
+ const gain=ctx.createGain();gain.gain.value=0;src.connect(filter);filter.connect(gain);gain.connect(ambienceMaster);src.start();
+ return {gain,src,filter,base:volume};
+}
+function makeTone(ctx,freq,type,volume){
+ const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type=type;osc.frequency.value=freq;gain.gain.value=0;osc.connect(gain);gain.connect(ambienceMaster);osc.start();return {osc,gain,base:volume};
+}
+function startAmbience(){
+ const AC=window.AudioContext||window.webkitAudioContext;if(!AC){ambienceButton.textContent='此瀏覽器不支援音效';return false;}
+ ambienceContext=new AC();ambienceMaster=ambienceContext.createGain();ambienceMaster.gain.value=0;ambienceMaster.connect(ambienceContext.destination);
+ ambienceLayers.wind=makeNoiseLayer(ambienceContext,'pink',.48,720);
+ ambienceLayers.water=makeNoiseLayer(ambienceContext,'water',.42,1250);
+ ambienceLayers.insects=makeNoiseLayer(ambienceContext,'pink',.14,3200);
+ ambienceLayers.hum=makeTone(ambienceContext,92,'sine',.10);
+ ambienceLayers.crystal=makeTone(ambienceContext,392,'sine',.045);
+ ambienceLayers.chime=makeTone(ambienceContext,660,'triangle',.025);
+ // Slow natural movement so the ambience subtly changes instead of looping as one flat noise.
+ const lfo=ambienceContext.createOscillator(),lfoGain=ambienceContext.createGain();lfo.frequency.value=.09;lfoGain.gain.value=110;lfo.connect(lfoGain);lfoGain.connect(ambienceLayers.wind.filter.frequency);lfo.start();
+ ambienceMaster.gain.setTargetAtTime(.72,ambienceContext.currentTime,.8);ambienceStarted=true;return true;
+}
+function setAmbienceScene(x,z){
+ if(!ambienceStarted||!ambienceOn)return;
+ const waterfall=Math.hypot(x-cliffX,z-cliffZ)<82;
+ const garden=Math.hypot(x+245,z+235)<92;
+ const cave=Math.hypot(x-275,z-225)<72;
+ const sceneKey=waterfall?'waterfall':garden?'garden':cave?'cave':'meadow';
+ if(sceneKey===lastAmbienceScene)return;lastAmbienceScene=sceneKey;
+ const t=ambienceContext.currentTime;
+ const profile=waterfall?{wind:.35,water:.95,insects:.12,hum:.08,crystal:.08,chime:.08}:garden?{wind:.78,water:.16,insects:.58,hum:.06,crystal:.12,chime:.45}:cave?{wind:.12,water:.34,insects:.02,hum:.72,crystal:.72,chime:.08}:{wind:.62,water:.22,insects:.24,hum:.10,crystal:.16,chime:.18};
+ for(const [key,value] of Object.entries(profile)){
+  const layer=ambienceLayers[key];if(!layer)continue;
+  const g=layer.gain;g.gain.setTargetAtTime(layer.base*value,t,1.8);
  }
- await ambienceContext.resume();ambienceOn=!ambienceOn;ambienceGain.gain.setTargetAtTime(ambienceOn?.035:0,ambienceContext.currentTime,.35);
+ if(ambienceLayers.hum)ambienceLayers.hum.osc.frequency.setTargetAtTime(cave?78:(garden?118:96),t,2);
+ if(ambienceLayers.crystal)ambienceLayers.crystal.osc.frequency.setTargetAtTime(cave?310:(garden?520:392),t,2);
+}
+ambienceButton.addEventListener('click',async()=>{
+ if(!ambienceStarted&&!startAmbience())return;
+ await ambienceContext.resume();ambienceOn=!ambienceOn;
+ ambienceMaster.gain.setTargetAtTime(ambienceOn?.72:0,ambienceContext.currentTime,.45);
  ambienceButton.textContent=ambienceOn?'🌬️ 環境音：開':'🌬️ 環境音：關';
+ if(ambienceOn){lastAmbienceScene='';setAmbienceScene(player.position.x,player.position.z);}
 });
-
 // Character
 const player=new THREE.Group(),bodyMat=mat(0x293b55);
 const body=new THREE.Mesh(new THREE.CapsuleGeometry(.85,2,4,8),bodyMat);body.position.y=2.45;body.castShadow=true;player.add(body);
@@ -339,6 +374,7 @@ function animate(){
  butterflies.forEach((b,i)=>{const u=b.userData;b.position.x=u.origin.x+Math.sin(worldClock.elapsedTime*.42+u.phase)*5;b.position.y=u.origin.y+Math.sin(worldClock.elapsedTime*.9+u.phase)*1.8;b.position.z=u.origin.z+Math.cos(worldClock.elapsedTime*.35+u.phase)*4;u.left.rotation.z=Math.sin(worldClock.elapsedTime*11+u.phase)*.65;u.right.rotation.z=-Math.sin(worldClock.elapsedTime*11+u.phase)*.65;});
  caveDust.forEach((m,i)=>{m.position.y=caveY+4+((worldClock.elapsedTime*1.2+i*2.3)%20);m.position.x+=Math.sin(worldClock.elapsedTime*.4+i)*dt*.22;});
  const inGarden=Math.hypot(x+245,z+235)<92,inCave=Math.hypot(x-275,z-225)<72;
+ setAmbienceScene(x,z);
  gardenGlow.intensity=inGarden?1.65:.25;caveShade.intensity=inCave?.95:.18;
  scene.fog.density=inCave?.0022:(inGarden?.00155:.00072);
  stars.rotation.y+=dt*.0008;falls.forEach((f,i)=>{const a=f.geometry.attributes.position;for(let k=0;k<a.count;k++){const x=a.getX(k),y=a.getY(k),z=a.getZ(k);a.setX(k,x+Math.sin(worldClock.elapsedTime*2.2+y*.22+i)*.018);a.setZ(k,z+Math.sin(worldClock.elapsedTime*2.8+y*.3+i)*.025);}a.needsUpdate=true;});renderer.render(scene,camera);
