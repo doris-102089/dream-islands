@@ -12,16 +12,20 @@
 #joystick{position:fixed;left:22px;bottom:25px;width:116px;height:116px;border-radius:50%;background:#ffffff20;border:2px solid #ffffff65;touch-action:none}
 #stick{position:absolute;left:33px;top:33px;width:46px;height:46px;border-radius:50%;background:#fff9;border:2px solid white;box-shadow:0 3px 12px #477b8066}
 #jump{position:fixed;right:25px;bottom:36px;width:68px;height:68px;border-radius:50%;border:2px solid #fff;background:#ffffff35;color:#fff;font-weight:800;font-size:15px}
+#vehicle{position:fixed;right:20px;top:108px;border:1px solid #fff;border-radius:22px;padding:10px 14px;background:#68a9bd99;color:#fff;font-weight:800}
+#gas{position:fixed;right:25px;bottom:120px;width:70px;height:70px;border-radius:50%;border:2px solid #fff;background:#4cbd9c99;color:#fff;font-weight:800;display:none;touch-action:none}
+#brake{position:fixed;right:108px;bottom:36px;width:62px;height:62px;border-radius:50%;border:2px solid #fff;background:#d58c9c99;color:#fff;font-weight:800;display:none;touch-action:none}
 #home{position:fixed;right:22px;top:16px;border:1px solid #fff9;border-radius:20px;padding:9px 13px;background:#ffffff30;color:#fff;font-weight:700}
 #zone{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);padding:7px 13px;border-radius:20px;background:#17183d88;color:white;text-shadow:0 1px 5px #345;font-size:12px;white-space:nowrap;pointer-events:none}
 #loading{position:fixed;inset:0;display:grid;place-items:center;background:linear-gradient(#17183d,#6575a7);color:#fff;font-size:20px;font-weight:800;z-index:5;text-shadow:0 2px 8px #456}
+#travel{position:fixed;right:22px;top:58px;border:1px solid #fff9;border-radius:20px;padding:9px 13px;background:#9b8cff66;color:#fff;font-weight:700}
 </style>
 </head>
 <body>
 <div id="game"></div><div id="loading">月亮正在升起，星星正在點亮……</div>
 <div id="title">夢境群島</div><div id="hint">Dream Islands · 月瀑星夜</div>
-<button id="home">回到起點</button>
-<div id="joystick"><div id="stick"></div></div><button id="jump">跳躍</button>
+<button id="home">回到起點</button><button id="travel">前往新場景 ✦</button><button id="vehicle">🚗 上車</button>
+<div id="joystick"><div id="stick"></div></div><button id="jump">跳躍</button><button id="gas">前進</button><button id="brake">煞車</button>
 <div id="zone">夢境草原・月光之境</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
@@ -42,6 +46,8 @@ const grassMat=mat(0x6e9e78),rockMats=[mat(0x68758d),mat(0x7d879b),mat(0x53647a)
 const leafMats=[mat(0x376d67),mat(0x477e72),mat(0x5b8b78),mat(0x718f7d)];
 const flowerMats=[mat(0xffe8ae),mat(0xf3b6d1),mat(0xbfc6ff),mat(0xffffff)];
 const rand=(a,b)=>a+Math.random()*(b-a);
+const blockers=[];
+function block(x,z,r){blockers.push({x,z,r});}
 function heightAt(x,z){return 4+Math.sin(x*.021+Math.cos(z*.017))*1.8+Math.sin(z*.037-x*.013)*1.1+Math.cos((x+z)*.012)*2.3+Math.sin(x*.008)*2+Math.max(0,1-Math.abs(x-170)/150)*Math.max(0,1-Math.abs(z+115)/190)*28;}
 function addMesh(geo,material,x,y,z,sx=1,sy=1,sz=1){const m=new THREE.Mesh(geo,material);m.position.set(x,y,z);m.scale.set(sx,sy,sz);m.castShadow=true;m.receiveShadow=true;scene.add(m);return m;}
 
@@ -83,6 +89,7 @@ for(let i=0;i<50;i++){const a=i/50*Math.PI*2,r=510+rand(-25,55),x=Math.cos(a)*r,
 for(let i=0;i<420;i++){
  const x=rand(-340,340),z=rand(-340,340);if(Math.hypot(x,z)<32||Math.hypot(x-170,z+115)<58)continue;
  const y=heightAt(x,z),s=rand(.72,1.3);
+ block(x,z,2.8*s);
  addMesh(new THREE.CylinderGeometry(.32*s,.65*s,6*s,7),woodMat,x,y+3*s,z);
  const crownMat=leafMats[i%leafMats.length];
  const crown=addMesh(new THREE.SphereGeometry(4.2*s,10,9),crownMat,x,y+8*s,z,1,1.15,1);
@@ -106,6 +113,7 @@ for(let patch=0;patch<155;patch++){
 for(let i=0;i<95;i++){
  const x=rand(-340,340),z=rand(-340,340);if(Math.hypot(x,z)<40)continue;const y=heightAt(x,z);
  const count=3+Math.floor(Math.random()*4);
+ block(x,z,4.5);
  for(let j=0;j<count;j++){const s=rand(.45,1.35),m=addMesh(new THREE.DodecahedronGeometry(s,1),rockMats[(i+j)%3],x+rand(-2.8,2.8),y+s*.45,z+rand(-2.8,2.8),rand(.8,1.5),rand(.55,1.1),rand(.8,1.4));m.rotation.set(rand(0,1),rand(0,6),rand(0,1));}
 }
 
@@ -125,6 +133,29 @@ for(let side=0;side<2;side++){const col=addMesh(new THREE.CylinderGeometry(1.8,2
 const lintel=addMesh(new THREE.BoxGeometry(21,3,4),rockMats[1],cliffX,cliffY+16,cliffZ-25);
 for(let i=0;i<12;i++){const orb=addMesh(new THREE.SphereGeometry(.38,8,8),new THREE.MeshStandardMaterial({color:0xffe6a5,emissive:0xffc66c,emissiveIntensity:1.6}),cliffX+rand(-23,23),cliffY+rand(4,16),cliffZ+rand(-36,42));}
 
+// Four distinct exploration districts across the large island
+const regionLabels=[
+ {name:'月霧花園',x:-245,z:-235,color:0xe6b9ff},
+ {name:'水晶洞窟',x:275,z:225,color:0x86eaff},
+ {name:'古代星門遺跡',x:-255,z:235,color:0xffd78c},
+ {name:'雲海港灣',x:275,z:-235,color:0xa9d9ff}
+];
+// Moon-mist garden: glowing flowers and pale trees
+for(let i=0;i<95;i++){const a=rand(0,Math.PI*2),r=rand(12,65),x=-245+Math.cos(a)*r,z=-235+Math.sin(a)*r,y=heightAt(x,z);const stem=addMesh(new THREE.CylinderGeometry(.09,.13,1.1,5),mat(0x638b83),x,y+.55,z);const glow=addMesh(new THREE.SphereGeometry(rand(.35,.7),9,8),new THREE.MeshStandardMaterial({color:0xf1caff,emissive:0xa45bcf,emissiveIntensity:1.5}),x,y+1.2,z);if(i%9===0){const l=new THREE.PointLight(0xc88cff,.7,22);l.position.set(x,y+2,z);scene.add(l);}}
+for(let i=0;i<13;i++){const x=-245+rand(-58,58),z=-235+rand(-58,58),y=heightAt(x,z);block(x,z,2.4);addMesh(new THREE.CylinderGeometry(.35,.7,7,7),mat(0x75628a),x,y+3.5,z);addMesh(new THREE.SphereGeometry(4.2,10,9),mat(0x9d82b5),x,y+8,z,1,1.25,1);}
+// Crystal cave: layered rock arch and luminous crystal clusters
+for(let i=0;i<18;i++){const a=i/18*Math.PI*2,x=275+Math.cos(a)*29,z=225+Math.sin(a)*23,y=heightAt(x,z);const h=rand(10,21);const rock=addMesh(new THREE.ConeGeometry(rand(5,9),h,7),mat(0x465b79),x,y+h/2-1,z);rock.rotation.z=rand(-.15,.15);block(x,z,4.5);}
+for(let i=0;i<55;i++){const x=275+rand(-38,38),z=225+rand(-30,30),y=heightAt(x,z);const crystal=addMesh(new THREE.ConeGeometry(rand(.8,2.2),rand(4,10),6),new THREE.MeshStandardMaterial({color:i%2?0x83eaff:0xb5a5ff,emissive:i%2?0x237eae:0x6550aa,emissiveIntensity:1.2,roughness:.25}),x,y+2.5,z);crystal.rotation.z=rand(-.18,.18);}
+// Ancient star-gate ruins with broken columns and a stone path
+for(let i=0;i<9;i++){const a=i/9*Math.PI*2,x=-255+Math.cos(a)*27,z=235+Math.sin(a)*27,y=heightAt(x,z);const h=rand(7,13);const col=addMesh(new THREE.CylinderGeometry(1.6,2.1,h,8),mat(0x8d8290),x,y+h/2,z);col.rotation.z=rand(-.12,.12);block(x,z,3.2);}
+const ruinTop=addMesh(new THREE.BoxGeometry(42,3,5),mat(0xa99a9b),-255,heightAt(-255,208)+13,208);ruinTop.rotation.z=.08;
+for(let i=0;i<24;i++){const x=-255+rand(-34,34),z=235+rand(-34,34),y=heightAt(x,z);addMesh(new THREE.DodecahedronGeometry(rand(1.2,3),1),mat(0x7f7788),x,y+1,z,1.4,.7,1);}
+// Cloud harbor: floating lanterns, pale arches and a reflecting pool
+const harborY=heightAt(275,-235);
+for(let i=0;i<3;i++){const x=245+i*30,z=-235;const arch=addMesh(new THREE.TorusGeometry(10,1.2,8,28,Math.PI),mat(0x9bb7d8),x,harborY+10,z);arch.rotation.z=Math.PI;block(x,z,3);}
+const harborPool=addMesh(new THREE.CircleGeometry(17,40),new THREE.MeshStandardMaterial({color:0x6abbd7,emissive:0x174f77,emissiveIntensity:.45,transparent:true,opacity:.82,roughness:.2}),275,harborY+.2,-235);harborPool.rotation.x=-Math.PI/2;harborPool.scale.set(1.4,1,1);
+for(let i=0;i<20;i++){const x=275+rand(-28,28),z=-235+rand(-25,25),y=harborY+rand(8,25);const orb=addMesh(new THREE.SphereGeometry(.55,10,8),new THREE.MeshStandardMaterial({color:0xffe5ae,emissive:0xffc56d,emissiveIntensity:1.8}),x,y,z);const light=new THREE.PointLight(0xffd28b,.35,12);light.position.copy(orb.position);scene.add(light);}
+
 // Character
 const player=new THREE.Group(),bodyMat=mat(0x293b55);
 const body=new THREE.Mesh(new THREE.CapsuleGeometry(.85,2,4,8),bodyMat);body.position.y=2.45;body.castShadow=true;player.add(body);
@@ -132,6 +163,35 @@ const head=new THREE.Mesh(new THREE.SphereGeometry(.78,14,12),mat(0xffdfc6));hea
 const cape=new THREE.Mesh(new THREE.ConeGeometry(1.4,3.4,9),new THREE.MeshStandardMaterial({color:0xe8c8ff,side:THREE.DoubleSide}));cape.position.set(0,2.6,-.9);cape.rotation.x=-Math.PI/2.4;player.add(cape);
 const legGeo=new THREE.CapsuleGeometry(.28,.85,3,6),legL=new THREE.Mesh(legGeo,bodyMat),legR=legL.clone();legL.position.set(-.4,.7,0);legR.position.set(.4,.7,0);player.add(legL,legR);
 player.position.set(0,heightAt(0,0),0);scene.add(player);
+
+// A small moonlit exploration buggy. It is intentionally simple and light for phones.
+const car=new THREE.Group();
+const carBody=new THREE.Mesh(new THREE.BoxGeometry(4.2,1.15,6.2),new THREE.MeshStandardMaterial({color:0x527d91,metalness:.35,roughness:.42}));
+carBody.position.y=1.65;carBody.castShadow=true;car.add(carBody);
+const cabin=new THREE.Mesh(new THREE.BoxGeometry(3.1,1.45,2.8),new THREE.MeshStandardMaterial({color:0xa9d7e4,transparent:true,opacity:.68,roughness:.2}));
+cabin.position.set(0,2.85,-.35);cabin.castShadow=true;car.add(cabin);
+const roof=new THREE.Mesh(new THREE.BoxGeometry(3.3,.22,3),new THREE.MeshStandardMaterial({color:0xe2d4b5,metalness:.25,roughness:.4}));
+roof.position.set(0,3.62,-.35);car.add(roof);
+const wheelMat=new THREE.MeshStandardMaterial({color:0x202a3c,roughness:.9});
+const wheels=[];
+for(const x of [-2.05,2.05]) for(const z of [-2,2]){
+ const w=new THREE.Mesh(new THREE.CylinderGeometry(.82,.82,.48,16),wheelMat);
+ w.rotation.z=Math.PI/2;w.position.set(x,.92,z);w.castShadow=true;car.add(w);wheels.push(w);
+}
+const lampMat=new THREE.MeshStandardMaterial({color:0xffefbd,emissive:0xffd27a,emissiveIntensity:1.8});
+for(const x of [-1.35,1.35]){const lamp=new THREE.Mesh(new THREE.SphereGeometry(.32,10,8),lampMat);lamp.position.set(x,1.9,-3.12);car.add(lamp);}
+car.visible=false;scene.add(car);
+let driving=false,carSpeed=0,throttle=0,brake=0;
+const vehicleBtn=document.querySelector('#vehicle'),gasBtn=document.querySelector('#gas'),brakeBtn=document.querySelector('#brake');
+vehicleBtn.addEventListener('click',()=>{
+ driving=!driving;carSpeed=0;car.visible=driving;player.visible=!driving;
+ if(driving){car.position.set(player.position.x,heightAt(player.position.x,player.position.z),player.position.z);car.rotation.y=player.rotation.y;vehicleBtn.textContent='🚶 下車';}
+ else {player.position.set(car.position.x+Math.sin(car.rotation.y)*4,heightAt(car.position.x,car.position.z),car.position.z+Math.cos(car.rotation.y)*4);vehicleBtn.textContent='🚗 上車';}
+ gasBtn.style.display=driving?'block':'none';brakeBtn.style.display=driving?'block':'none';document.querySelector('#jump').style.display=driving?'none':'block';
+});
+function holdButton(el,setter){el.addEventListener('pointerdown',e=>{e.preventDefault();setter(1);el.setPointerCapture(e.pointerId);});const stop=()=>setter(0);el.addEventListener('pointerup',stop);el.addEventListener('pointercancel',stop);el.addEventListener('lostpointercapture',stop);}
+holdButton(gasBtn,v=>throttle=v);holdButton(brakeBtn,v=>brake=v);
+
 
 // A path of tiny lantern flowers
 for(let i=0;i<42;i++){const t=i/41,x=-15+t*240,z=25+Math.sin(t*6)*80,y=heightAt(x,z);const lightOrb=addMesh(new THREE.SphereGeometry(.38,8,8),new THREE.MeshStandardMaterial({color:0xffe6aa,emissive:0xffbd68,emissiveIntensity:1.7}),x,y+1.5,z);if(i%4===0){const l=new THREE.PointLight(0xffd38b,.55,14);l.position.copy(lightOrb.position);scene.add(l);}}
@@ -146,6 +206,8 @@ function endJoy(e){if(e.pointerId===joyId){joyId=null;moveX=moveZ=0;stick.style.
 joystick.addEventListener('pointerup',endJoy);joystick.addEventListener('pointercancel',endJoy);
 document.querySelector('#jump').addEventListener('pointerdown',()=>{if(onGround){vy=12;onGround=false;}});
 document.querySelector('#home').addEventListener('click',()=>{player.position.set(0,heightAt(0,0),0);yaw=0;});
+const destinations=[{x:0,z:0,name:'夢境草原・月光之境'},{x:-245,z:-235,name:'月霧花園'},{x:275,z:225,name:'水晶洞窟'},{x:-255,z:235,name:'古代星門遺跡'},{x:275,z:-235,name:'雲海港灣'},{x:cliffX,z:cliffZ,name:'月亮瀑布・星光之門'}];let destinationIndex=0;
+document.querySelector('#travel').addEventListener('click',()=>{destinationIndex=(destinationIndex+1)%destinations.length;const d=destinations[destinationIndex];player.position.set(d.x,heightAt(d.x,d.z),d.z);vy=0;yaw=0;zone.textContent=d.name;});
 let dragging=false,lastX=0,lastY=0;
 renderer.domElement.addEventListener('pointerdown',e=>{if(e.clientX>145&&e.clientY<innerHeight-145){dragging=true;lastX=e.clientX;lastY=e.clientY;renderer.domElement.setPointerCapture(e.pointerId);}});
 renderer.domElement.addEventListener('pointermove',e=>{if(dragging){yaw-=(e.clientX-lastX)*.005;pitch=THREE.MathUtils.clamp(pitch+(e.clientY-lastY)*.003,-.15,.8);lastX=e.clientX;lastY=e.clientY;}});
@@ -156,15 +218,32 @@ const zone=document.querySelector('#zone'),clock=new THREE.Clock();
 function animate(){
  requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.04);
  const forward=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw)),right=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
- const dir=forward.clone().multiplyScalar(-moveZ).add(right.multiplyScalar(moveX));
- if(dir.lengthSq()>.001){dir.normalize();player.position.addScaledVector(dir,dt*15);player.rotation.y=Math.atan2(dir.x,dir.z);walk+=dt*10;legL.rotation.x=Math.sin(walk)*.5;legR.rotation.x=-Math.sin(walk)*.5;}
- const x=player.position.x,z=player.position.z,ground=heightAt(x,z);vy-=27*dt;player.position.y+=vy*dt;
- if(player.position.y<ground){player.position.y=ground;vy=0;onGround=true;}
- player.position.x=THREE.MathUtils.clamp(x,-365,365);player.position.z=THREE.MathUtils.clamp(z,-365,365);
- const target=new THREE.Vector3(player.position.x+Math.sin(yaw)*19,player.position.y+10+pitch*10,player.position.z+Math.cos(yaw)*19);
- camera.position.lerp(target,.09);camera.lookAt(player.position.x,player.position.y+2.4,player.position.z);
+ let activeX=player.position.x,activeZ=player.position.z,activeY=player.position.y;
+ if(!driving){
+  const dir=forward.clone().multiplyScalar(-moveZ).add(right.multiplyScalar(moveX));
+  if(dir.lengthSq()>.001){dir.normalize();const nx=player.position.x+dir.x*dt*15,nz=player.position.z+dir.z*dt*15;let blocked=false;for(const b of blockers){const dx=nx-b.x,dz=nz-b.z,dist=Math.hypot(dx,dz),min=b.r+1.8;if(dist<min){blocked=true;const push=(min-dist)/(dist||1);player.position.x+=dx*push;player.position.z+=dz*push;}}if(!blocked){player.position.x=nx;player.position.z=nz;}player.rotation.y=Math.atan2(dir.x,dir.z);walk+=dt*10;legL.rotation.x=Math.sin(walk)*.5;legR.rotation.x=-Math.sin(walk)*.5;}
+  const ground=heightAt(player.position.x,player.position.z);vy-=27*dt;player.position.y+=vy*dt;
+  if(player.position.y<ground){player.position.y=ground;vy=0;onGround=true;}
+  player.position.x=THREE.MathUtils.clamp(player.position.x,-365,365);player.position.z=THREE.MathUtils.clamp(player.position.z,-365,365);
+  activeX=player.position.x;activeZ=player.position.z;activeY=player.position.y;
+ }else{
+  carSpeed+=(throttle*24-brake*38)*dt;carSpeed*=Math.pow(.985,dt*60);carSpeed=THREE.MathUtils.clamp(carSpeed,-10,30);
+  car.rotation.y-=moveX*dt*(.75+Math.min(Math.abs(carSpeed)/18,.8))*(carSpeed<0?-1:1);
+  const nx=car.position.x-Math.sin(car.rotation.y)*carSpeed*dt,nz=car.position.z-Math.cos(car.rotation.y)*carSpeed*dt;
+  let blocked=false;for(const b of blockers){const dx=nx-b.x,dz=nz-b.z,dist=Math.hypot(dx,dz),min=b.r+3.2;if(dist<min){blocked=true;carSpeed=0;}}
+  if(!blocked){car.position.x=THREE.MathUtils.clamp(nx,-365,365);car.position.z=THREE.MathUtils.clamp(nz,-365,365);}
+  car.position.y=heightAt(car.position.x,car.position.z);wheels.forEach(w=>w.rotation.x-=carSpeed*dt*1.5);
+  activeX=car.position.x;activeZ=car.position.z;activeY=car.position.y;
+ }
+ const x=activeX,z=activeZ;
+ const followYaw=driving?car.rotation.y:yaw;
+ const target=new THREE.Vector3(activeX+Math.sin(followYaw)*22,activeY+(driving?12:10)+pitch*10,activeZ+Math.cos(followYaw)*22);
+ camera.position.lerp(target,.09);camera.lookAt(activeX,activeY+(driving?1.8:2.4),activeZ);
  if(Math.hypot(x-cliffX,z-cliffZ)<75)zone.textContent='月亮瀑布・星光之門';
- else if(Math.hypot(x+145,z-55)<60)zone.textContent='銀月湖・倒映星河';
+ else if(Math.hypot(x+245,z+235)<85)zone.textContent='月霧花園';
+ else if(Math.hypot(x-275,z-225)<85)zone.textContent='水晶洞窟';
+ else if(Math.hypot(x+255,z-235)<85)zone.textContent='古代星門遺跡';
+ else if(Math.hypot(x-275,z+235)<85)zone.textContent='雲海港灣';
  else zone.textContent='夢境草原・月光之境';
  stars.rotation.y+=dt*.0008;renderer.render(scene,camera);
 }
