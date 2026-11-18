@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>夢境群島｜場景升級版</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#09152c;font-family:system-ui,"Noto Sans TC",sans-serif;color:#fff}
+#game{position:fixed;inset:0}canvas{display:block;width:100%;height:100%}
+#cover{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,rgba(8,20,48,.22),rgba(8,20,48,.88));z-index:5;padding:24px;text-align:center}
+.panel{max-width:430px;padding:28px 24px;border:1px solid #ffffff40;border-radius:24px;background:#102344d9;box-shadow:0 20px 70px #0008}
+h1{font-size:30px;margin:0 0 8px;letter-spacing:2px}.sub{color:#d5e6ff;line-height:1.7;font-size:14px;margin-bottom:20px}
+button{border:0;border-radius:999px;background:#e7c9ff;color:#26304c;font-weight:800;padding:13px 24px;font-size:16px;cursor:pointer}
+#hud{position:fixed;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none;gap:8px}
+.pill{background:#0b1b35b8;border:1px solid #ffffff30;border-radius:15px;padding:9px 12px;font-size:13px;backdrop-filter:blur(8px)}
+#help{max-width:210px;line-height:1.5;text-align:right}
+#controls{position:fixed;bottom:18px;left:18px;right:18px;display:flex;justify-content:space-between;align-items:end;pointer-events:none}
+#pad{width:132px;height:132px;position:relative;pointer-events:auto;touch-action:none}
+#base{position:absolute;inset:0;border-radius:50%;background:#dceaff28;border:1px solid #ffffff55}
+#stick{position:absolute;width:54px;height:54px;left:39px;top:39px;border-radius:50%;background:#e8ddffbb;border:2px solid #fff}
+#actions{display:flex;gap:10px;pointer-events:auto}
+.action{width:58px;height:58px;padding:0;background:#e7c9ffdd;border:2px solid #fff8;font-size:13px}
+#hint{position:fixed;bottom:160px;left:50%;transform:translateX(-50%);background:#0b1b35b8;border-radius:12px;padding:8px 12px;font-size:12px;white-space:nowrap;pointer-events:none}
+@media(min-width:700px){#controls{left:30px;right:30px;bottom:24px}#pad{width:145px;height:145px}#stick{left:44px;top:44px}#help{max-width:280px}}
+</style>
+</head>
+<body>
+<div id="game"></div>
+<div id="cover"><div class="panel"><h1>夢境群島</h1><div class="sub">四座風景不同的浮空島嶼，<br>用石橋連接起來。<br>搖桿移動、拖曳畫面轉動視角，慢慢探索吧。</div><button id="start">進入夢境</button></div></div>
+<div id="hud"><div class="pill">🌙 夢境群島</div><div class="pill" id="islandName">中央・星雲廣場</div><div class="pill" id="help">左下搖桿移動<br>拖曳畫面旋轉視角</div></div>
+<div id="hint">沿著石橋探索四座島嶼 ✨</div>
+<div id="controls"><div id="pad"><div id="base"></div><div id="stick"></div></div><div id="actions"><button class="action" id="jump">跳躍</button><button class="action" id="reset">回家</button></div></div>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+
+const mount=document.getElementById('game');
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0x9bc9e8); scene.fog=new THREE.Fog(0x9bc9e8,65,145);
+const camera=new THREE.PerspectiveCamera(62,innerWidth/innerHeight,.1,250);
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.7)); renderer.setSize(innerWidth,innerHeight); renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap; renderer.outputColorSpace=THREE.SRGBColorSpace;
+mount.appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xe6f6ff,0x56617c,2.0));
+const sun=new THREE.DirectionalLight(0xfff0d2,2.4); sun.position.set(-25,45,28); sun.castShadow=true; sun.shadow.mapSize.set(1024,1024); scene.add(sun);
+const mat=(c,rough=.85,metal=0)=>new THREE.MeshStandardMaterial({color:c,roughness:rough,metalness:metal});
+const grass=mat(0x70ad82), deepGrass=mat(0x477b70), soil=mat(0x806b65), stone=mat(0x9b9ba8), paleStone=mat(0xc8c5c2), wood=mat(0x8b634c), leaf=mat(0x397d68), leaf2=mat(0x75a879), flowerMats=[mat(0xffc9df),mat(0xffe5a1),mat(0xc8c2ff),mat(0xffffff)];
+const water= new THREE.MeshStandardMaterial({color:0x70d7ec,transparent:true,opacity:.78,roughness:.22,metalness:.12});
+const world=new THREE.Group();scene.add(world);
+function mesh(g,m,x,y,z,sx=1,sy=1,sz=1){const o=new THREE.Mesh(g,m);o.position.set(x,y,z);o.scale.set(sx,sy,sz);o.castShadow=true;o.receiveShadow=true;world.add(o);return o}
+function addIsland(x,z,r,name,type){
+  // Irregular layered island with a grassy crown and tapered rocky underside
+  const shape=new THREE.Shape(); const n=13;
+  for(let i=0;i<n;i++){const a=i/n*Math.PI*2, rr=r*(.88+.12*Math.sin(i*2.7+ x));const px=Math.cos(a)*rr,pz=Math.sin(a)*rr;if(i===0)shape.moveTo(px,pz);else shape.lineTo(px,pz)}
+  shape.closePath();
+  const geo=new THREE.ExtrudeGeometry(shape,{depth:2.4,bevelEnabled:true,bevelSegments:3,steps:1,bevelSize:.55,bevelThickness:.45,curveSegments:4});
+  geo.rotateX(Math.PI/2);
+  const rock=new THREE.Mesh(geo,soil);rock.position.set(x,-1.15,z);rock.castShadow=true;rock.receiveShadow=true;world.add(rock);
+  const top=mesh(new THREE.CylinderGeometry(r*.98,r*.92,.55,13),type==='falls'?deepGrass:grass,x,.12,z);top.position.y=.0;
+  // island rim stones
+  for(let i=0;i<13;i++){const a=i/13*Math.PI*2,rr=r*.91;mesh(new THREE.DodecahedronGeometry(.55,0),stone,x+Math.cos(a)*rr,-.15,z+Math.sin(a)*rr,.9,.7,.9)}
+  return {x,z,r,name,type};
+}
+const islands=[
+ addIsland(0,0,10,'中央・星雲廣場','home'),
+ addIsland(0,29,9,'翡翠森林島','forest'),
+ addIsland(29,0,9,'花語庭園島','garden'),
+ addIsland(0,-29,9,'月光瀑布島','falls'),
+ addIsland(-29,0,9,'星光遺跡島','ruins')
+];
+// bridge decks: visible stone slabs between each island and central island
+function bridge(ax,az,bx,bz){
+ const dx=bx-ax,dz=bz-az,len=Math.hypot(dx,dz),ux=dx/len,uz=dz/len,px=-uz,pz=ux;
+ const count= Math.floor((len-18)/1.15);
+ for(let i=0;i<count;i++){const t=(i+.5)/count, x=ax+dx*t,z=az+dz*t;
+  const slab=mesh(new THREE.BoxGeometry(3.6,.42,1.15),i%3===0?paleStone:stone,x,.05,z);
+  slab.rotation.y=Math.atan2(dx,dz);slab.rotation.y=Math.atan2(ux,uz);
+  // low side rails, so the path reads clearly as a real bridge
+  for(const side of [-1,1]){const rail=mesh(new THREE.BoxGeometry(.32,.48,1.05),deepGrass,x+px*1.85*side,.25,z+pz*1.85*side);rail.rotation.y=Math.atan2(ux,uz)}
+ }
+ // little stone entry pads
+ for(const t of [.08,.92]){const x=ax+dx*t,z=az+dz*t;mesh(new THREE.BoxGeometry(4.2,.5,2.1),paleStone,x,.02,z).rotation.y=Math.atan2(ux,uz)}
+}
+for(let i=1;i<islands.length;i++)bridge(0,0,islands[i].x,islands[i].z);
+function tree(x,z,h=3){mesh(new THREE.CylinderGeometry(.18,.28,h*.55,7),wood,x,.25+h*.27,z);mesh(new THREE.ConeGeometry(h*.42,h*.72,8),leaf,x,.55+h*.65,z);mesh(new THREE.ConeGeometry(h*.31,h*.58,8),leaf2,x,.8+h*.88,z)}
+function flower(x,z,s=1,mi=0){mesh(new THREE.CylinderGeometry(.035,.05,.45*s,5),leaf2,x,.35*s,z);const f=mesh(new THREE.SphereGeometry(.18*s,8,6),flowerMats[mi%4],x,.6*s,z);f.scale.y=.65}
+function rock(x,z,s=1){mesh(new THREE.DodecahedronGeometry(.65*s,0),stone,x,.35*s,z,1.1,.8,.9)}
+// central plaza, lanterns and little observatory
+for(let i=0;i<8;i++){const a=i*Math.PI/4;tree(Math.cos(a)*6.8,Math.sin(a)*6.8,2.3)}
+mesh(new THREE.CylinderGeometry(3.1,3.5,.38,12),paleStone,0,.42,0);
+mesh(new THREE.CylinderGeometry(1.35,1.5,.45,12),wood,0,.75,0);
+mesh(new THREE.ConeGeometry(1.5,1.2,8),mat(0x8d9bc1),0,1.55,0);
+for(let i=0;i<8;i++){const a=i*Math.PI/4;mesh(new THREE.SphereGeometry(.22,10,8),mat(0xffdf9a,.3),Math.cos(a)*4.2,1.1,Math.sin(a)*4.2)}
+// forest island
+for(let i=0;i<17;i++){const a=i*2.4,r=2.3+(i%4)*1.25;tree(Math.cos(a)*r,29+Math.sin(a)*r,2.5+(i%3)*.5)}
+for(let i=0;i<12;i++){const a=i*2.1,r=2+Math.random()*5;rock(Math.cos(a)*r,29+Math.sin(a)*r,.6)}
+// garden island
+for(let i=0;i<45;i++){const a=i*2.399,r=1.5+(i%7)*.85;flower(29+Math.cos(a)*r,Math.sin(a)*r,.75+(i%3)*.12,i%4)}
+for(let i=0;i<4;i++){const a=i*Math.PI/2;tree(29+Math.cos(a)*6,Math.sin(a)*6,2)}
+// waterfall island: cliff columns and blue waterfall strips
+for(let i=0;i<7;i++){const a=i*Math.PI*2/7,x=Math.cos(a)*5,z=-29+Math.sin(a)*5;rock(x,z,1.35)}
+const falls=mesh(new THREE.BoxGeometry(1.35,5.8,.16),water,4.7,-2.4,-29);falls.position.z=-29;falls.rotation.z=.08;
+mesh(new THREE.CylinderGeometry(2.3,2.7,.35,16),mat(0x65b8c8),0,.25,-29);
+for(let i=0;i<10;i++)flower((Math.random()-.5)*7,-29+(Math.random()-.5)*7,.7,i%4);
+// ruins island: columns and broken arches
+for(let i=0;i<7;i++){const a=i*Math.PI*2/7,x=-29+Math.cos(a)*4.7,z=Math.sin(a)*4.7;mesh(new THREE.CylinderGeometry(.32,.42,3.5,8),paleStone,x,1.9,z);mesh(new THREE.CylinderGeometry(.55,.55,.3,8),stone,x,3.7,z)}
+mesh(new THREE.TorusGeometry(2.6,.25,8,16,Math.PI*1.4),paleStone,-29,3.6,0).rotation.z=Math.PI/2;
+for(let i=0;i<8;i++){const a=i*Math.PI/4;mesh(new THREE.BoxGeometry(1.5,.35,.8),stone,-29+Math.cos(a)*6,.25,Math.sin(a)*6)}
+// floating clouds
+for(let i=0;i<18;i++){const x=(Math.random()-.5)*100,z=(Math.random()-.5)*100,y=12+Math.random()*16;const g=new THREE.Group();for(let j=0;j<4;j++){const p=new THREE.Mesh(new THREE.SphereGeometry(1.5+Math.random(),10,8),new THREE.MeshStandardMaterial({color:0xffffff,transparent:true,opacity:.42,roughness:1}));p.position.set(j*1.5,Math.random()*.5,Math.random());g.add(p)}g.position.set(x,y,z);world.add(g)}
+// stars in the sky
+const starGeo=new THREE.BufferGeometry(), starPos=[];for(let i=0;i<500;i++){starPos.push((Math.random()-.5)*180,Math.random()*65+8,(Math.random()-.5)*180)}starGeo.setAttribute('position',new THREE.Float32BufferAttribute(starPos,3));scene.add(new THREE.Points(starGeo,new THREE.PointsMaterial({color:0xffffff,size:.16,transparent:true,opacity:.8})));
+
+// Simple original character, intentionally kept minimal
+const player=new THREE.Group();world.add(player);
+const bodyMat=mat(0x28334d),headMat=mat(0xffe2c5);
+const body=new THREE.Mesh(new THREE.CapsuleGeometry(.34,.72,4,8),bodyMat);body.position.y=1.05;body.castShadow=true;player.add(body);
+const head=new THREE.Mesh(new THREE.SphereGeometry(.34,12,10),headMat);head.position.y=1.78;head.castShadow=true;player.add(head);
+const scarf=new THREE.Mesh(new THREE.BoxGeometry(.58,.13,.18),mat(0xffd48a));scarf.position.set(0,1.42,.22);player.add(scarf);
+for(const side of [-1,1]){const leg=new THREE.Mesh(new THREE.CylinderGeometry(.09,.1,.55,7),bodyMat);leg.position.set(side*.16,.35,0);player.add(leg)}
+player.position.set(0,.35,0);
+
+let yaw=0,camPitch=.28,camDist=9,moveX=0,moveY=0,jumpV=0,onGround=true,started=false;
+const clock=new THREE.Clock();
+function nearestIsland(){let best=islands[0],d=1e9;for(const a of islands){const q=Math.hypot(player.position.x-a.x,player.position.z-a.z);if(q<d){d=q;best=a}}return best}
+function updateName(){document.getElementById('islandName').textContent=nearestIsland().name}
+function animate(){
+ requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.04);
+ if(started){
+  const forward=new THREE.Vector3(Math.sin(yaw),0,Math.cos(yaw)),right=new THREE.Vector3(forward.z,0,-forward.x);
+  const v=forward.multiplyScalar(moveY).add(right.multiplyScalar(moveX));if(v.lengthSq()>1)v.normalize();
+  player.position.x+=v.x*dt*7;player.position.z+=v.z*dt*7;
+  if(v.lengthSq()>.01){player.rotation.y=Math.atan2(v.x,v.z);body.rotation.z=Math.sin(performance.now()*.012)*.06}
+  if(!onGround){jumpV-=19*dt;player.position.y+=jumpV*dt;if(player.position.y<=.35){player.position.y=.35;jumpV=0;onGround=true}}
+  // Return a wandering player gently to the central island if they walk far beyond the world
+  if(Math.hypot(player.position.x,player.position.z)>57){player.position.set(0,.35,0)}
+  updateName();
+ }
+ const target=new THREE.Vector3(player.position.x,player.position.y+1.2,player.position.z);
+ const horiz=camDist*Math.cos(camPitch),height=camDist*Math.sin(camPitch)+2.3;
+ camera.position.set(target.x-Math.sin(yaw)*horiz,target.y+height,target.z-Math.cos(yaw)*horiz);camera.lookAt(target);
+ renderer.render(scene,camera);
+}
+animate();
+function resize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)}addEventListener('resize',resize);
+document.getElementById('start').onclick=()=>{started=true;document.getElementById('cover').style.display='none'};
+document.getElementById('jump').onclick=()=>{if(onGround){jumpV=7.2;onGround=false}};
+document.getElementById('reset').onclick=()=>{player.position.set(0,.35,0);yaw=0;camPitch=.28};
+const pad=document.getElementById('pad'),stick=document.getElementById('stick');let active=false,pid=null;
+function setStick(e){const r=pad.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let dx=e.clientX-cx,dy=e.clientY-cy,L=Math.hypot(dx,dy),max=43;if(L>max){dx*=max/L;dy*=max/L}stick.style.transform=`translate(${dx}px,${dy}px)`;moveX=dx/max;moveY=-dy/max}
+pad.addEventListener('pointerdown',e=>{active=true;pid=e.pointerId;pad.setPointerCapture(pid);setStick(e)});
+pad.addEventListener('pointermove',e=>{if(active&&e.pointerId===pid)setStick(e)});
+function endPad(){active=false;moveX=0;moveY=0;stick.style.transform='translate(0,0)'}
+pad.addEventListener('pointerup',endPad);pad.addEventListener('pointercancel',endPad);
+let dragging=false,lastX=0,lastY=0;
+renderer.domElement.addEventListener('pointerdown',e=>{dragging=true;lastX=e.clientX;lastY=e.clientY});
+addEventListener('pointerup',()=>dragging=false);
+addEventListener('pointermove',e=>{if(!dragging)return;const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;yaw-=dx*.006;camPitch=Math.max(-.05,Math.min(.85,camPitch+dy*.004)});
+</script>
+</body></html>
