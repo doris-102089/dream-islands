@@ -19,6 +19,9 @@
 #zone{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);padding:7px 13px;border-radius:20px;background:#17183d88;color:white;text-shadow:0 1px 5px #345;font-size:12px;white-space:nowrap;pointer-events:none}
 #loading{position:fixed;inset:0;display:grid;place-items:center;background:linear-gradient(#17183d,#6575a7);color:#fff;font-size:20px;font-weight:800;z-index:5;text-shadow:0 2px 8px #456}
 #travel{position:fixed;right:22px;top:58px;border:1px solid #fff9;border-radius:20px;padding:9px 13px;background:#9b8cff66;color:#fff;font-weight:700}
+#musicBtn{position:fixed;left:14px;top:76px;border:1px solid #ffffff99;border-radius:20px;padding:8px 12px;background:#27365fbb;color:#fff;font-weight:700;font-size:12px}
+#musicFile{display:none}
+#ambienceBtn{position:fixed;left:14px;top:118px;border:1px solid #ffffff99;border-radius:20px;padding:8px 12px;background:#345a70bb;color:#fff;font-weight:700;font-size:12px}
 </style>
 </head>
 <body>
@@ -26,7 +29,7 @@
 <div id="title">夢境群島</div><div id="hint">Dream Islands · 月瀑星夜</div>
 <button id="home">回到起點</button><button id="travel">前往新場景 ✦</button><button id="vehicle">🚗 上車</button>
 <div id="joystick"><div id="stick"></div></div><button id="jump">跳躍</button><button id="gas">前進</button><button id="brake">煞車</button>
-<div id="zone">夢境草原・月光之境</div>
+<div id="zone">夢境草原・月光之境</div><button id="musicBtn">🎵 選擇音樂</button><button id="ambienceBtn">🌬️ 環境音：關</button><input id="musicFile" type="file" accept="audio/*">
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 const mount=document.querySelector('#game'),scene=new THREE.Scene();
@@ -190,6 +193,58 @@ for(let i=0;i<3;i++){const x=245+i*30,z=-235;const arch=addMesh(new THREE.TorusG
 const harborPool=addMesh(new THREE.CircleGeometry(17,40),new THREE.MeshStandardMaterial({color:0x6abbd7,emissive:0x174f77,emissiveIntensity:.45,transparent:true,opacity:.82,roughness:.2}),275,harborY+.2,-235);harborPool.rotation.x=-Math.PI/2;harborPool.scale.set(1.4,1,1);
 for(let i=0;i<20;i++){const x=275+rand(-28,28),z=-235+rand(-25,25),y=harborY+rand(8,25);const orb=addMesh(new THREE.SphereGeometry(.55,10,8),new THREE.MeshStandardMaterial({color:0xffe5ae,emissive:0xffc56d,emissiveIntensity:1.8}),x,y,z);const light=new THREE.PointLight(0xffd28b,.35,12);light.position.copy(orb.position);scene.add(light);}
 
+// Local atmosphere for Moon-mist Garden: layered low fog, moonlit motes and butterflies.
+const gardenFog=new THREE.Group();scene.add(gardenFog);
+const fogMat=new THREE.MeshBasicMaterial({color:0xc7c8ef,transparent:true,opacity:.075,depthWrite:false});
+for(let i=0;i<46;i++){
+ const puff=new THREE.Mesh(new THREE.SphereGeometry(rand(3.5,8),10,8),fogMat);
+ puff.position.set(-245+rand(-78,78),heightAt(-245,-235)+rand(1.5,8),-235+rand(-76,76));
+ puff.scale.set(rand(1.5,2.8),.32,rand(1.2,2.4));puff.userData.baseY=puff.position.y;gardenFog.add(puff);
+}
+const butterflies=[];
+for(let i=0;i<13;i++){
+ const b=new THREE.Group();b.position.set(-245+rand(-54,54),heightAt(-245,-235)+rand(2,10),-235+rand(-54,54));
+ const wingMat=new THREE.MeshBasicMaterial({color:i%3===0?0xffd9f4:(i%3===1?0xd7e8ff:0xffefc1),transparent:true,opacity:.9,side:THREE.DoubleSide});
+ const left=new THREE.Mesh(new THREE.SphereGeometry(.34,8,6),wingMat),right=left.clone();
+ left.scale.set(.85,.16,.52);right.scale.set(.85,.16,.52);left.position.x=-.32;right.position.x=.32;
+ b.add(left,right);b.userData={left,right,phase:rand(0,6.28),origin:b.position.clone()};butterflies.push(b);gardenFog.add(b);
+}
+const gardenGlow=new THREE.PointLight(0xc6a5ff,1.15,105);gardenGlow.position.set(-245,18,-235);scene.add(gardenGlow);
+
+// Crystal cavern: a dark overhead rock vault, deep blue ambient shade and sparse crystal light.
+const caveX=275,caveZ=225,caveY=heightAt(caveX,caveZ);
+const caveShell=new THREE.Mesh(new THREE.SphereGeometry(48,28,18,0,Math.PI*2,0,Math.PI*.53),new THREE.MeshStandardMaterial({color:0x172238,roughness:1,side:THREE.BackSide}));
+caveShell.position.set(caveX,caveY+3,caveZ);caveShell.scale.set(1.12,.92,.92);scene.add(caveShell);
+const caveShade=new THREE.PointLight(0x25395f,.65,95);caveShade.position.set(caveX,caveY+13,caveZ);scene.add(caveShade);
+const caveRays=[];
+for(let i=0;i<7;i++){
+ const x=caveX+rand(-27,27),z=caveZ+rand(-20,20),y=heightAt(x,z);
+ const crystalLight=new THREE.PointLight(i%2?0x63cfff:0x9c8cff,1.0,25);crystalLight.position.set(x,y+5,z);scene.add(crystalLight);caveRays.push(crystalLight);
+}
+const caveDust=[];
+for(let i=0;i<34;i++){
+ const mote=addMesh(new THREE.SphereGeometry(.12,6,5),new THREE.MeshBasicMaterial({color:i%2?0x9ceaff:0xc8baff,transparent:true,opacity:.7}),caveX+rand(-33,33),caveY+rand(2,24),caveZ+rand(-28,28));mote.castShadow=false;caveDust.push(mote);
+}
+
+// Simple local audio controls: the player can choose an audio file from their own device.
+const musicInput=document.querySelector('#musicFile'),musicButton=document.querySelector('#musicBtn');
+const userAudio=new Audio();userAudio.loop=true;userAudio.volume=.42;
+musicButton.addEventListener('click',()=>musicInput.click());
+musicInput.addEventListener('change',()=>{const file=musicInput.files&&musicInput.files[0];if(!file)return;userAudio.src=URL.createObjectURL(file);userAudio.play().then(()=>{musicButton.textContent='🎵 '+file.name.slice(0,12);}).catch(()=>{musicButton.textContent='點一下播放音樂';});});
+const ambienceButton=document.querySelector('#ambienceBtn');let ambienceContext=null,ambienceSource=null,ambienceGain=null,ambienceOn=false;
+ambienceButton.addEventListener('click',async()=>{
+ if(!ambienceContext){const AC=window.AudioContext||window.webkitAudioContext;if(!AC){ambienceButton.textContent='此瀏覽器不支援音效';return;}ambienceContext=new AC();
+ const buffer=ambienceContext.createBuffer(1,ambienceContext.sampleRate*3,ambienceContext.sampleRate),data=buffer.getChannelData(0);
+ for(let i=0;i<data.length;i++)data[i]=(Math.random()*2-1)*.22;
+ ambienceSource=ambienceContext.createBufferSource();ambienceSource.buffer=buffer;ambienceSource.loop=true;
+ const filter=ambienceContext.createBiquadFilter();filter.type='lowpass';filter.frequency.value=520;
+ ambienceGain=ambienceContext.createGain();ambienceGain.gain.value=0;
+ ambienceSource.connect(filter);filter.connect(ambienceGain);ambienceGain.connect(ambienceContext.destination);ambienceSource.start();
+ }
+ await ambienceContext.resume();ambienceOn=!ambienceOn;ambienceGain.gain.setTargetAtTime(ambienceOn?.035:0,ambienceContext.currentTime,.35);
+ ambienceButton.textContent=ambienceOn?'🌬️ 環境音：開':'🌬️ 環境音：關';
+});
+
 // Character
 const player=new THREE.Group(),bodyMat=mat(0x293b55);
 const body=new THREE.Mesh(new THREE.CapsuleGeometry(.85,2,4,8),bodyMat);body.position.y=2.45;body.castShadow=true;player.add(body);
@@ -279,6 +334,13 @@ function animate(){
  else if(Math.hypot(x+255,z-235)<85)zone.textContent='古代星門遺跡';
  else if(Math.hypot(x-275,z+235)<85)zone.textContent='雲海港灣';
  else zone.textContent='夢境草原・月光之境';
+ // Local atmosphere animation: slow fog drift, gentle butterfly wingbeats and cave motes.
+ gardenFog.children.forEach((o,i)=>{if(o.userData.baseY!==undefined){o.position.x+=Math.sin(worldClock.elapsedTime*.18+i)*dt*.7;o.position.y=o.userData.baseY+Math.sin(worldClock.elapsedTime*.45+i)*.45;}});
+ butterflies.forEach((b,i)=>{const u=b.userData;b.position.x=u.origin.x+Math.sin(worldClock.elapsedTime*.42+u.phase)*5;b.position.y=u.origin.y+Math.sin(worldClock.elapsedTime*.9+u.phase)*1.8;b.position.z=u.origin.z+Math.cos(worldClock.elapsedTime*.35+u.phase)*4;u.left.rotation.z=Math.sin(worldClock.elapsedTime*11+u.phase)*.65;u.right.rotation.z=-Math.sin(worldClock.elapsedTime*11+u.phase)*.65;});
+ caveDust.forEach((m,i)=>{m.position.y=caveY+4+((worldClock.elapsedTime*1.2+i*2.3)%20);m.position.x+=Math.sin(worldClock.elapsedTime*.4+i)*dt*.22;});
+ const inGarden=Math.hypot(x+245,z+235)<92,inCave=Math.hypot(x-275,z-225)<72;
+ gardenGlow.intensity=inGarden?1.65:.25;caveShade.intensity=inCave?.95:.18;
+ scene.fog.density=inCave?.0022:(inGarden?.00155:.00072);
  stars.rotation.y+=dt*.0008;falls.forEach((f,i)=>{const a=f.geometry.attributes.position;for(let k=0;k<a.count;k++){const x=a.getX(k),y=a.getY(k),z=a.getZ(k);a.setX(k,x+Math.sin(worldClock.elapsedTime*2.2+y*.22+i)*.018);a.setZ(k,z+Math.sin(worldClock.elapsedTime*2.8+y*.3+i)*.025);}a.needsUpdate=true;});renderer.render(scene,camera);
 }
 animate();document.querySelector('#loading').style.display='none';
