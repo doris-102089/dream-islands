@@ -28,6 +28,11 @@
 #economy button{border:1px solid #ffffffaa;border-radius:18px;padding:8px 11px;background:#263b70dd;color:#fff;font-weight:750;font-size:12px;box-shadow:0 2px 8px #0003;touch-action:manipulation}
 #economy button:disabled{opacity:.45}
 #cityBtn{border-color:#ffe0a0!important;background:linear-gradient(110deg,#7041a8dd,#b57a32dd)!important}
+#staminaBox{position:fixed;left:14px;top:158px;width:148px;padding:6px 8px;border-radius:12px;background:#17254dcc;color:#fff;font-size:11px;z-index:4}
+#staminaTrack{height:8px;background:#ffffff35;border-radius:9px;overflow:hidden;margin-top:4px}#staminaFill{height:100%;width:100%;background:linear-gradient(90deg,#8cffb2,#e8ff9a);border-radius:9px}
+#shopPanel{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(310px,88vw);max-height:75vh;overflow:auto;z-index:8;display:none;padding:14px;border:1px solid #ffe6ad;border-radius:18px;background:linear-gradient(150deg,#20264eee,#52345eee);color:white;box-shadow:0 10px 40px #0009}
+#shopPanel h3{margin:2px 0 8px;font-size:17px}#shopPanel p{font-size:12px;line-height:1.5;margin:6px 0 10px}#shopPanel button{display:block;width:100%;margin:7px 0;padding:9px;border:1px solid #ffffff70;border-radius:12px;background:#ffffff20;color:white;font-weight:750;text-align:left;touch-action:manipulation}#shopPanel button:disabled{opacity:.45}#shopClose{background:#8b567c!important;text-align:center!important}
+#shopOpen{position:fixed;left:14px;top:204px;border:1px solid #ffe6ad;border-radius:18px;padding:8px 12px;background:#744c9add;color:#fff;font-weight:800;z-index:4}
 #buildHint{position:fixed;left:50%;top:155px;transform:translateX(-50%);padding:7px 12px;border-radius:14px;background:#17254ddd;color:white;font-size:12px;display:none;z-index:4;white-space:nowrap}
 @media(max-width:420px){#economy{top:151px;right:8px;gap:5px}#economy button{padding:7px 9px;font-size:11px}#wallet{padding:6px 8px}}
 </style>
@@ -44,7 +49,16 @@
  <button id="buyBtn">🪵 買木塊（1元＝1塊）</button>
  <button id="buildBtn">🏡 開始蓋房子</button>
  <button id="cityBtn">🏙️ 解鎖霓虹城（20元）</button>
-</div><div id="buildHint">建造模式：點擊地面放置木塊，再按一次結束</div>
+</div>
+<div id="staminaBox">⚡ 體力 <span id="staminaText">100/100</span><div id="staminaTrack"><div id="staminaFill"></div></div></div>
+<button id="shopOpen">🛍️ 服飾／美食店</button>
+<div id="shopPanel"><h3>🌟 月光購物街</h3><p>用挖到的 💎 鑽石購買造型，用 🪙 金幣買食物補充體力。已購買的服裝可以隨時換穿。</p>
+<button data-outfit="rose">🌸 櫻花披風（5 鑽石）</button>
+<button data-outfit="ocean">🌊 星海旅人（8 鑽石）</button>
+<button data-outfit="gold">✨ 金色星辰（12 鑽石）</button>
+<button id="foodBtn">🍰 買月光蛋糕（3 金幣，恢復 45 體力）</button>
+<button id="shopClose">關閉商店</button></div>
+<div id="buildHint">建造模式：點擊地面放置木塊，再按一次結束</div>
 <div id="zone">夢境草原・月光之境</div><button id="musicBtn">🎵 選擇音樂</button><button id="ambienceBtn">🌬️ 環境音：關</button><input id="musicFile" type="file" accept="audio/*">
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
@@ -143,6 +157,31 @@ block(cityX+5,cityZ-66,20);
 for(let i=0;i<8;i++){const x=cityX-70+i*20;const strip=addMesh(new THREE.BoxGeometry(1.2,.18,105),i%2?neonPink:neonBlue,x,cityTop+.18,cityZ+3);strip.castShadow=false;}
 for(let i=0;i<4;i++){const pool=addMesh(new THREE.BoxGeometry(20,.3,8),new THREE.MeshPhysicalMaterial({color:0x36bde9,emissive:0x126b9d,emissiveIntensity:.7,transparent:true,opacity:.86,roughness:.12}),cityX-65+i*42,cityTop+.3,cityZ+82);}
 const cityHalo=new THREE.PointLight(0xff9be7,2.2,190);cityHalo.position.set(cityX,cityTop+65,cityZ);scene.add(cityHalo);
+
+// Open-air outlet shopping district inspired by Taiwan's Linkou outlet atmosphere.
+const mallBase=addMesh(new THREE.BoxGeometry(78,2.2,34),new THREE.MeshStandardMaterial({color:0x9b8b82,roughness:.72}),cityX-8,cityTop+.2,cityZ+42);
+const mallWall=new THREE.MeshStandardMaterial({color:0xead8c5,roughness:.62});
+const mallGlass=new THREE.MeshStandardMaterial({color:0x5e9cae,metalness:.35,roughness:.18,emissive:0x23556a,emissiveIntensity:.65});
+const mallRoof=new THREE.MeshStandardMaterial({color:0x51445b,metalness:.3,roughness:.45});
+// Two warm-lit shopping wings around an open pedestrian lane.
+for(let wing=0;wing<2;wing++){
+ const wx=cityX-8+(wing?25:-25),wz=cityZ+43;
+ const wingBody=addMesh(new THREE.BoxGeometry(27,13,28),mallWall,wx,cityTop+7.2,wz);
+ const roof=addMesh(new THREE.BoxGeometry(29,1.2,30),mallRoof,wx,cityTop+14.3,wz);
+ block(wx-9,wz,7);block(wx+9,wz,7);block(wx,wz-10,9);
+ for(let floor=0;floor<2;floor++)for(let shop=0;shop<3;shop++){
+  const sx=wx-8+shop*8,sy=cityTop+3.5+floor*6.2,sz=wz+14.25;
+  const windowPane=addMesh(new THREE.BoxGeometry(6.5,4.1,.28),mallGlass,sx,sy,sz);
+  const awning=addMesh(new THREE.BoxGeometry(7,.65,1.8),floor?neonBlue:neonPink,sx,sy+2.45,sz+.7);awning.castShadow=false;
+  const shopLight=new THREE.PointLight(shop%2?0xffd89a:0xffa9db,.65,15);shopLight.position.set(sx,sy,sz+3);scene.add(shopLight);
+ }
+}
+// Bright central outlet sign, lamp strings and pedestrian plaza.
+const signCanvas=document.createElement('canvas');signCanvas.width=512;signCanvas.height=128;const signCtx=signCanvas.getContext('2d');
+signCtx.fillStyle='#2c2444';signCtx.fillRect(0,0,512,128);signCtx.font='bold 54px sans-serif';signCtx.textAlign='center';signCtx.fillStyle='#ffe7b2';signCtx.fillText('LINKOU OUTLET',256,82);
+const signTex=new THREE.CanvasTexture(signCanvas);const sign=addMesh(new THREE.PlaneGeometry(32,8),new THREE.MeshBasicMaterial({map:signTex}),cityX-8,cityTop+17,cityZ+57);sign.rotation.x=0;
+for(let i=0;i<9;i++){const lx=cityX-48+i*10,lz=cityZ+18;const pole=addMesh(new THREE.CylinderGeometry(.16,.22,7,8),goldMat,lx,cityTop+3.5,lz);const bulb=addMesh(new THREE.SphereGeometry(.55,8,8),new THREE.MeshBasicMaterial({color:0xffe2a0}),lx,cityTop+7.2,lz);const lamp=new THREE.PointLight(0xffd99c,.8,22);lamp.position.copy(bulb.position);scene.add(lamp);}
+for(let i=0;i<7;i++){const x=cityX-35+i*11,z=cityZ+65;const planter=addMesh(new THREE.BoxGeometry(5,.7,3),new THREE.MeshStandardMaterial({color:0x4e665b}),x,cityTop+.5,z);const shrub=addMesh(new THREE.SphereGeometry(1.7,9,7),new THREE.MeshStandardMaterial({color:0x4c896f}),x,cityTop+2,z);block(x,z,2.1);}
 
 // Distant layered mountain silhouettes
 for(let i=0;i<50;i++){const a=i/50*Math.PI*2,r=510+rand(-25,55),x=Math.cos(a)*r,z=Math.sin(a)*r,h=rand(70,155);const m=addMesh(new THREE.ConeGeometry(rand(24,46),h,9),mat(i%2?0x596b87:0x71809d),x,h/2-5,z);m.rotation.y=rand(0,6);}
@@ -429,9 +468,9 @@ holdButton(gasBtn,v=>throttle=v);holdButton(brakeBtn,v=>brake=v);
 
 
 // Crystal economy and Minecraft-like block building.
-let crystals=0,coins=0,woodBlocks=0,buildMode=false;try{coins=Number(localStorage.getItem('dreamIslandsCoins')||0)||0;}catch(e){}
+let crystals=0,coins=0,woodBlocks=0,buildMode=false;try{coins=Number(localStorage.getItem('dreamIslandsCoins')||0)||0;crystals=Number(localStorage.getItem('dreamIslandsDiamonds')||0)||0;}catch(e){}
 const wallet=document.querySelector('#wallet'),mineBtn=document.querySelector('#mineBtn'),sellBtn=document.querySelector('#sellBtn'),buyBtn=document.querySelector('#buyBtn'),buildBtn=document.querySelector('#buildBtn'),buildHint=document.querySelector('#buildHint');
-function updateWallet(){try{localStorage.setItem('dreamIslandsCoins',String(coins));}catch(e){}const px=driving?car.position.x:player.position.x,pz=driving?car.position.z:player.position.z;wallet.textContent=`💎 水晶 ${crystals}　🪙 金幣 ${coins}　🪵 木塊 ${woodBlocks}`;mineBtn.disabled=!mineNodes.some(n=>n.available&&Math.hypot(px-n.x,pz-n.z)<13);sellBtn.disabled=crystals<1;buyBtn.disabled=coins<1;}
+function updateWallet(){try{localStorage.setItem('dreamIslandsCoins',String(coins));localStorage.setItem('dreamIslandsDiamonds',String(crystals));}catch(e){}const px=driving?car.position.x:player.position.x,pz=driving?car.position.z:player.position.z;wallet.textContent=`💎 鑽石 ${crystals}　🪙 金幣 ${coins}　🪵 木塊 ${woodBlocks}`;mineBtn.disabled=!mineNodes.some(n=>n.available&&Math.hypot(px-n.x,pz-n.z)<13);sellBtn.disabled=crystals<1;buyBtn.disabled=coins<1;}
 function saveBuild(){try{localStorage.setItem('dreamIslandsBuildV1',JSON.stringify(placedBlocks.map(b=>({x:b.position.x,y:b.position.y,z:b.position.z}))));}catch(e){}}
 const placedBlocks=[];
 const woodBlockMat=new THREE.MeshStandardMaterial({color:0x9b7048,roughness:.88});
@@ -455,6 +494,20 @@ renderer.domElement.addEventListener('pointerdown',e=>{
 });
 updateWallet();
 
+// Outfit boutique and stamina/food system.
+let stamina=100,staminaMax=100;const staminaFill=document.querySelector('#staminaFill'),staminaText=document.querySelector('#staminaText');
+function updateStamina(){stamina=Math.max(0,Math.min(staminaMax,stamina));staminaFill.style.width=(stamina/staminaMax*100)+'%';staminaText.textContent=Math.round(stamina)+'/'+staminaMax;}
+let ownedOutfits=['default'];try{ownedOutfits=JSON.parse(localStorage.getItem('dreamIslandsOutfits')||'["default"]');if(!Array.isArray(ownedOutfits))ownedOutfits=['default'];}catch(e){}
+let equippedOutfit='default';try{equippedOutfit=localStorage.getItem('dreamIslandsEquipped')||'default';}catch(e){}
+const outfitLooks={default:{body:0x293b55,cape:0xe8c8ff},rose:{body:0x8e496e,cape:0xffa9d6},ocean:{body:0x245b83,cape:0x65d9ef},gold:{body:0x8b6828,cape:0xffd86b}};
+function equipOutfit(id){const look=outfitLooks[id]||outfitLooks.default;bodyMat.color.setHex(look.body);cape.material.color.setHex(look.cape);equippedOutfit=id;try{localStorage.setItem('dreamIslandsEquipped',id);}catch(e){}}
+equipOutfit(equippedOutfit);
+const shopPanel=document.querySelector('#shopPanel');document.querySelector('#shopOpen').addEventListener('click',()=>{shopPanel.style.display='block';});document.querySelector('#shopClose').addEventListener('click',()=>{shopPanel.style.display='none';});
+const outfitPrices={rose:5,ocean:8,gold:12};
+shopPanel.querySelectorAll('[data-outfit]').forEach(btn=>{const id=btn.dataset.outfit;const names={rose:'櫻花披風',ocean:'星海旅人',gold:'金色星辰'};function refresh(){btn.textContent=ownedOutfits.includes(id)?(equippedOutfit===id?'✓ 已穿上：':'👕 穿上：')+names[id]:'🛍️ '+names[id]+'（'+outfitPrices[id]+' 鑽石）';}refresh();btn.addEventListener('click',()=>{if(!ownedOutfits.includes(id)){if(crystals<outfitPrices[id]){btn.textContent='鑽石不足，還差 '+(outfitPrices[id]-crystals)+' 顆';setTimeout(refresh,1300);return;}crystals-=outfitPrices[id];ownedOutfits.push(id);try{localStorage.setItem('dreamIslandsOutfits',JSON.stringify(ownedOutfits));}catch(e){}}equipOutfit(id);updateWallet();shopPanel.querySelectorAll('[data-outfit]').forEach(b=>{const k=b.dataset.outfit;b.textContent=ownedOutfits.includes(k)?(equippedOutfit===k?'✓ 已穿上：':'👕 穿上：')+names[k]:'🛍️ '+names[k]+'（'+outfitPrices[k]+' 鑽石）';});});});
+document.querySelector('#foodBtn').addEventListener('click',()=>{if(coins<3){document.querySelector('#foodBtn').textContent='金幣不足，還需要 3 元';setTimeout(()=>document.querySelector('#foodBtn').textContent='🍰 買月光蛋糕（3 金幣，恢復 45 體力）',1300);return;}if(stamina>=staminaMax){document.querySelector('#foodBtn').textContent='體力已經滿了！';setTimeout(()=>document.querySelector('#foodBtn').textContent='🍰 買月光蛋糕（3 金幣，恢復 45 體力）',1100);return;}coins-=3;stamina=Math.min(staminaMax,stamina+45);updateStamina();updateWallet();});
+updateStamina();
+
 // A path of tiny lantern flowers
 for(let i=0;i<42;i++){const t=i/41,x=-15+t*240,z=25+Math.sin(t*6)*80,y=heightAt(x,z);const lightOrb=addMesh(new THREE.SphereGeometry(.38,8,8),new THREE.MeshStandardMaterial({color:0xffe6aa,emissive:0xffbd68,emissiveIntensity:1.7}),x,y+1.5,z);if(i%4===0){const l=new THREE.PointLight(0xffd38b,.55,14);l.position.copy(lightOrb.position);scene.add(l);}}
 
@@ -466,7 +519,7 @@ joystick.addEventListener('pointermove',e=>{if(e.pointerId===joyId)updateJoy(e);
 function updateJoy(e){const r=joystick.getBoundingClientRect(),dx=e.clientX-(r.left+r.width/2),dy=e.clientY-(r.top+r.height/2),d=Math.hypot(dx,dy),k=Math.min(1,d/43);moveX=dx/(d||1)*k;moveZ=dy/(d||1)*k;stick.style.transform=`translate(${moveX*34}px,${moveZ*34}px)`;}
 function endJoy(e){if(e.pointerId===joyId){joyId=null;moveX=moveZ=0;stick.style.transform='translate(0,0)';}}
 joystick.addEventListener('pointerup',endJoy);joystick.addEventListener('pointercancel',endJoy);
-document.querySelector('#jump').addEventListener('pointerdown',()=>{if(onGround){vy=12;onGround=false;}});
+document.querySelector('#jump').addEventListener('pointerdown',()=>{if(onGround&&stamina>=12){vy=12;onGround=false;stamina-=12;updateStamina();}});
 document.querySelector('#home').addEventListener('click',()=>{player.position.set(0,heightAt(0,0),0);yaw=0;});
 let cityUnlocked=false;try{cityUnlocked=localStorage.getItem('dreamIslandsCityUnlocked')==='1';}catch(e){}
 const cityBtn=document.querySelector('#cityBtn');
@@ -488,8 +541,8 @@ function animate(){
  let activeX=player.position.x,activeZ=player.position.z,activeY=player.position.y;
  if(!driving){
   const dir=forward.clone().multiplyScalar(-moveZ).add(right.multiplyScalar(moveX));
-  if(dir.lengthSq()>.001){dir.normalize();const nx=player.position.x+dir.x*dt*15,nz=player.position.z+dir.z*dt*15;let blocked=false;for(const b of blockers){const dx=nx-b.x,dz=nz-b.z,dist=Math.hypot(dx,dz),min=b.r+1.8;if(dist<min){if(b.kind==='tree'){breakTree(b,dx,dz);continue;}blocked=true;const push=(min-dist)/(dist||1);player.position.x+=dx*push;player.position.z+=dz*push;}}if(!blocked){player.position.x=nx;player.position.z=nz;}player.rotation.y=Math.atan2(dir.x,dir.z);walk+=dt*10;legL.rotation.x=Math.sin(walk)*.5;legR.rotation.x=-Math.sin(walk)*.5;}
-  const ground=groundAt(player.position.x,player.position.z);vy-=27*dt;player.position.y+=vy*dt;
+  if(dir.lengthSq()>.001&&stamina>0){dir.normalize();stamina=Math.max(0,stamina-dt*2.2);updateStamina();const nx=player.position.x+dir.x*dt*15,nz=player.position.z+dir.z*dt*15;let blocked=false;for(const b of blockers){const dx=nx-b.x,dz=nz-b.z,dist=Math.hypot(dx,dz),min=b.r+1.8;if(dist<min){if(b.kind==='tree'){breakTree(b,dx,dz);continue;}blocked=true;const push=(min-dist)/(dist||1);player.position.x+=dx*push;player.position.z+=dz*push;}}if(!blocked){player.position.x=nx;player.position.z=nz;}player.rotation.y=Math.atan2(dir.x,dir.z);walk+=dt*10;legL.rotation.x=Math.sin(walk)*.5;legR.rotation.x=-Math.sin(walk)*.5;}
+  if(moveX===0&&moveZ===0) {stamina=Math.min(staminaMax,stamina+dt*3.2);updateStamina();} const ground=groundAt(player.position.x,player.position.z);vy-=27*dt;player.position.y+=vy*dt;
   if(player.position.y<ground){player.position.y=ground;vy=0;onGround=true;}
   player.position.x=THREE.MathUtils.clamp(player.position.x,-365,625);player.position.z=THREE.MathUtils.clamp(player.position.z,-365,365);
   activeX=player.position.x;activeZ=player.position.z;activeY=player.position.y;
@@ -511,6 +564,7 @@ function animate(){
  else if(Math.hypot(x-275,z-225)<85)zone.textContent='水晶洞窟';
  else if(Math.hypot(x+255,z-235)<85)zone.textContent='古代星門遺跡';
  else if(Math.hypot(x-275,z+235)<85)zone.textContent='雲海港灣';
+ else if(Math.hypot(x-cityX,z-cityZ)<112)zone.textContent='林口風格・星光 Outlet 購物城';
  else zone.textContent='夢境草原・月光之境';
  // Fallen trees regrow after a short rest, restoring their collision too.
  for(let i=treeRespawns.length-1;i>=0;i--){const t=treeRespawns[i];t.timer-=dt;if(t.timer<=0){t.tree.rotation.set(0,0,0);t.tree.visible=true;blockers.push({x:t.x,z:t.z,r:t.r,kind:'tree',object:t.tree,broken:false});treeRespawns.splice(i,1);}}
