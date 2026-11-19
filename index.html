@@ -66,7 +66,7 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.m
 const mount=document.querySelector('#game'),scene=new THREE.Scene();
 scene.background=new THREE.Color(0x171b43);
 scene.fog=new THREE.FogExp2(0x30365f,.00072);
-const camera=new THREE.PerspectiveCamera(62,innerWidth/innerHeight,.1,2000);
+const camera=new THREE.PerspectiveCamera(68,innerWidth/innerHeight,.1,2000);
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;
@@ -102,8 +102,10 @@ function groundAt(x,z){
   }
   const inside=Math.abs(x-mallCenterX)<46 && z>mallCenterZ-37 && z<mallCenterZ+37;
   if(inside){
-   const inAtrium=Math.abs(x-mallCenterX)<16 && z>mallCenterZ-15 && z<mallCenterZ+17;
-   if(!inAtrium && (Math.abs(x-mallCenterX)>17 || z<mallCenterZ-15 || z>mallCenterZ+17)) return cityTop+12;
+   // The atrium remains open to the ground floor; only the four gallery wings are upstairs.
+   const ax=Math.abs(x-mallCenterX),az=Math.abs(z-mallCenterZ);
+   const onGallery=(ax>=18 && ax<=45) || (az>=18 && az<=36);
+   if(onGallery) return cityTop+12;
   }
   return cityTop;
  }
@@ -200,24 +202,42 @@ const mallWarm=new THREE.MeshStandardMaterial({color:0xe8bd82,emissive:0x7d4821,
 const mallPlant=new THREE.MeshStandardMaterial({color:0x4c8068,roughness:1});
 const mallWood=new THREE.MeshStandardMaterial({color:0x92745b,roughness:.82});
 const mallFloor=addMesh(new THREE.BoxGeometry(94,.8,76),mallFloorMat,mallX,cityTop-.4,mallZ);
-// Large stepped white massing and glass curtain-wall wings.
-addMesh(new THREE.BoxGeometry(96,2,78),mallStone,mallX,cityTop+1,mallZ);
-addMesh(new THREE.BoxGeometry(94,4,74),mallWhite,mallX,cityTop+3,mallZ);
-addMesh(new THREE.BoxGeometry(92,1.2,72),mallStone,mallX,cityTop+5.5,mallZ);
-addMesh(new THREE.BoxGeometry(88,1.2,68),mallWhite,mallX,cityTop+17,mallZ);
-addMesh(new THREE.BoxGeometry(92,1.4,72),mallStone,mallX,cityTop+24,mallZ);
+// Open-air resort-mall massing: slim stone plinths, layered white fascia and a visible glass atrium.
+// The former solid boxes are deliberately replaced with open structure so the interior stays visible.
+addMesh(new THREE.BoxGeometry(96,.9,78),mallStone,mallX,cityTop-.45,mallZ);
+// Horizontal fascia is built only around the perimeter, leaving the atrium volume open.
+addMesh(new THREE.BoxGeometry(92,.75,1.1),mallWhite,mallX,cityTop+7.1,mallZ+36.4);
+addMesh(new THREE.BoxGeometry(92,.75,1.1),mallWhite,mallX,cityTop+7.1,mallZ-36.4);
+addMesh(new THREE.BoxGeometry(1.1,.75,72),mallWhite,mallX+45.4,cityTop+7.1,mallZ);
+addMesh(new THREE.BoxGeometry(1.1,.75,72),mallWhite,mallX-45.4,cityTop+7.1,mallZ);
+// Upper-level white fascia bands sit above the storefront glazing rather than filling the building.
+addMesh(new THREE.BoxGeometry(92,1.15,1.1),mallWhite,mallX,cityTop+20.3,mallZ+36.4);
+addMesh(new THREE.BoxGeometry(92,1.15,1.1),mallWhite,mallX,cityTop+20.3,mallZ-36.4);
+addMesh(new THREE.BoxGeometry(1.1,1.15,72),mallWhite,mallX+45.4,cityTop+20.3,mallZ);
+addMesh(new THREE.BoxGeometry(1.1,1.15,72),mallWhite,mallX-45.4,cityTop+20.3,mallZ);
 // Front facade is split around a tall, open entrance.
 addMesh(new THREE.BoxGeometry(31,17,1.4),mallWhite,mallX-31.5,cityTop+13,front);
 addMesh(new THREE.BoxGeometry(31,17,1.4),mallWhite,mallX+31.5,cityTop+13,front);
 addMesh(new THREE.BoxGeometry(30,3,1.4),mallWhite,mallX,cityTop+22,front);
 for(let side of [-1,1]){
- addMesh(new THREE.BoxGeometry(1.5,19,76),mallWhite,mallX+side*47,cityTop+12,mallZ);
- addMesh(new THREE.BoxGeometry(1.2,18,1.5),mallStone,mallX+side*47,cityTop+12,mallZ-37);
- // Tall glass curtain walls on both sides, with fine mullions.
- for(let z=mallZ-27;z<=mallZ+27;z+=9){
-  addMesh(new THREE.BoxGeometry(.35,13,8.3),mallGlass,mallX+side*46.1,cityTop+11,z);
-  addMesh(new THREE.BoxGeometry(.28,13,.22),mallMetal,mallX+side*45.8,cityTop+11,z);
+ // Two-storey glass curtain wall, divided by slender white piers like an open-air outlet arcade.
+ for(let z=mallZ-33;z<=mallZ+33;z+=11){
+  addMesh(new THREE.BoxGeometry(.34,13,10.2),mallGlass,mallX+side*46,cityTop+11.2,z+5.5);
+  addMesh(new THREE.BoxGeometry(.7,19,1.0),mallWhite,mallX+side*46.2,cityTop+12,z);
+  addMesh(new THREE.BoxGeometry(.2,13,.18),mallMetal,mallX+side*45.72,cityTop+11.2,z+5.5);
  }
+ addMesh(new THREE.BoxGeometry(1.2,1.1,76),mallStone,mallX+side*46,cityTop+6.9,mallZ);
+ addMesh(new THREE.BoxGeometry(1.2,1.0,76),mallWhite,mallX+side*46,cityTop+20.3,mallZ);
+}
+// Broad glazed shopfront wings and a projecting resort-style entrance canopy.
+for(let side of [-1,1]){
+ for(let i=0;i<3;i++){
+  const bx=mallX+side*(22+i*9.2);
+  addMesh(new THREE.BoxGeometry(8.4,8.8,.32),mallGlass,bx,cityTop+10.7,front-.82);
+  addMesh(new THREE.BoxGeometry(.18,8.8,.22),mallMetal,bx,cityTop+10.7,front-1.02);
+ }
+ addMesh(new THREE.BoxGeometry(28,.75,5.5),mallStone,mallX+side*29,cityTop+7.3,front-2.5);
+ addMesh(new THREE.BoxGeometry(28,.3,5.5),mallWhite,mallX+side*29,cityTop+7.8,front-2.5);
 }
 // Signature high arched entrance portal with layered trim and tall glazed doors.
 const archOuter=addMesh(new THREE.TorusGeometry(15,1.5,12,64,Math.PI),mallWhite,mallX,cityTop+10,front-.6);
@@ -235,9 +255,11 @@ for(let side of [-1,1]){
 }
 // Main interior floor and a true open-to-below central atrium.
 addMesh(new THREE.BoxGeometry(90,.7,72),mallFloorMat,mallX,cityTop+.1,mallZ);
-addMesh(new THREE.BoxGeometry(90,.65,72),mallFloorMat,mallX,cityTop+12,mallZ);
-// Atrium void: remove the centre of the upper deck visually with a dark open well, then frame it with galleries.
-addMesh(new THREE.BoxGeometry(32,.22,31),new THREE.MeshStandardMaterial({color:0x242c35,roughness:.95}),mallX,cityTop+11.72,mallZ);
+// Four separated second-floor gallery wings leave a true open central atrium.
+addMesh(new THREE.BoxGeometry(90,.65,18),mallFloorMat,mallX,cityTop+12,mallZ-27);
+addMesh(new THREE.BoxGeometry(90,.65,18),mallFloorMat,mallX,cityTop+12,mallZ+27);
+addMesh(new THREE.BoxGeometry(18,.65,36),mallFloorMat,mallX-36,cityTop+12,mallZ);
+addMesh(new THREE.BoxGeometry(18,.65,36),mallFloorMat,mallX+36,cityTop+12,mallZ);
 for(const z of [mallZ-17,mallZ+17]){
  addMesh(new THREE.BoxGeometry(90,.55,2.8),mallFloorMat,mallX,cityTop+12,z);
  addMesh(new THREE.BoxGeometry(90,.35,.3),mallMetal,mallX,cityTop+13.2,z);
@@ -250,8 +272,7 @@ for(const x of [mallX-17,mallX+17]){
 }
 // Open upper-level balconies and glass balustrades.
 for(let side of [-1,1]){
- addMesh(new THREE.BoxGeometry(26,.6,66),mallFloorMat,mallX+side*32,cityTop+12,mallZ);
- addMesh(new THREE.BoxGeometry(.3,1.25,66),mallGlass,mallX+side*19,cityTop+12.8,mallZ);
+ addMesh(new THREE.BoxGeometry(.3,1.25,36),mallGlass,mallX+side*18,cityTop+12.8,mallZ);
 }
 // Escalators: visible ribbed inclined belts and handrails, with matching walkable sloped lanes.
 for(let side of [-1,1]){
@@ -275,7 +296,8 @@ for(let side of [-1,1]){
  for(let i=0;i<4;i++){
   const sx=mallX+side*34,sz=mallZ-25+i*16;
   addMesh(new THREE.BoxGeometry(18,.25,13),mallWood,sx,cityTop+.35,sz);
-  addMesh(new THREE.BoxGeometry(17,6,.45),mallGlass,sx,cityTop+3.6,sz-6.5);
+  addMesh(new THREE.BoxGeometry(5.6,6,.35),mallGlass,sx-5.7,cityTop+3.6,sz-6.5);
+  addMesh(new THREE.BoxGeometry(5.6,6,.35),mallGlass,sx+5.7,cityTop+3.6,sz-6.5);
   addMesh(new THREE.BoxGeometry(17,.45,.8),mallWhite,sx,cityTop+6.7,sz-6.2);
   addMesh(new THREE.BoxGeometry(12,.35,1),new THREE.MeshStandardMaterial({color:storeColors[(i+(side>0?2:0))%6],emissive:storeColors[(i+(side>0?2:0))%6],emissiveIntensity:.12}),sx,cityTop+6.1,sz-6.9);
   addMesh(new THREE.BoxGeometry(5,1.2,2),mallWood,sx,cityTop+1.2,sz+1);
@@ -312,7 +334,7 @@ for(let side of [-1,1]){
 }
 // Bright interior ceiling lights, pendant lights and signage.
 for(let x=mallX-32;x<=mallX+32;x+=16) for(let z=mallZ-25;z<=mallZ+25;z+=17){
- const lamp=new THREE.PointLight(0xffdfb4,1.15,24);lamp.position.set(x,cityTop+21,z);scene.add(lamp);
+ const lamp=new THREE.PointLight(0xffdfb4,1.65,30);lamp.position.set(x,cityTop+21,z);scene.add(lamp);
  addMesh(new THREE.SphereGeometry(.34,10,8),new THREE.MeshBasicMaterial({color:0xffe7bd}),x,cityTop+22,z);
 }
 const mallSignCanvas=document.createElement('canvas');mallSignCanvas.width=768;mallSignCanvas.height=180;
@@ -683,15 +705,23 @@ function animate(){
   activeX=car.position.x;activeZ=car.position.z;activeY=car.position.y;
  }
  const x=activeX,z=activeZ;
- const followYaw=driving?car.rotation.y:yaw;
- const target=new THREE.Vector3(activeX+Math.sin(followYaw)*22,activeY+(driving?12:10)+pitch*10,activeZ+Math.cos(followYaw)*22);
- camera.position.lerp(target,.09);camera.lookAt(activeX,activeY+(driving?1.8:2.4),activeZ);
+  const followYaw=driving?car.rotation.y:yaw;
+  const inMall=Math.abs(activeX-mallX)<49 && activeZ>mallZ-40 && activeZ<front-4;
+  const camDist=driving?15:(inMall?8.5:10.5);
+  const camHeight=driving?8.5:(inMall?5.2:6.2)+pitch*7;
+  const target=new THREE.Vector3(activeX+Math.sin(followYaw)*camDist,activeY+camHeight,activeZ+Math.cos(followYaw)*camDist);
+  if(inMall){
+   // Keep the follow camera on the same side of the mall walls as the player.
+   target.x=THREE.MathUtils.clamp(target.x,mallX-43,mallX+43);
+   target.z=THREE.MathUtils.clamp(target.z,mallZ-34,front+10);
+  }
+  camera.position.lerp(target,inMall?.18:.12);camera.lookAt(activeX,activeY+(driving?1.8:2.2),activeZ);
  if(Math.hypot(x-cliffX,z-cliffZ)<75)zone.textContent='月亮瀑布・星光之門';
  else if(Math.hypot(x+245,z+235)<85)zone.textContent='月霧花園';
  else if(Math.hypot(x-275,z-225)<85)zone.textContent='水晶洞窟';
  else if(Math.hypot(x+255,z-235)<85)zone.textContent='古代星門遺跡';
  else if(Math.hypot(x-275,z+235)<85)zone.textContent='雲海港灣';
- else if(Math.hypot(x-cityX,z-cityZ)<112)zone.textContent='林口三井風格・星光 Outlet 購物城';
+ else if(Math.hypot(x-cityX,z-cityZ)<112)zone.textContent='林口三井 Outlet';
  else zone.textContent='夢境草原・月光之境';
  // Fallen trees regrow after a short rest, restoring their collision too.
  for(let i=treeRespawns.length-1;i>=0;i--){const t=treeRespawns[i];t.timer-=dt;if(t.timer<=0){t.tree.rotation.set(0,0,0);t.tree.visible=true;blockers.push({x:t.x,z:t.z,r:t.r,kind:'tree',object:t.tree,broken:false});treeRespawns.splice(i,1);}}
