@@ -43,7 +43,7 @@
  <button id="sellBtn">💰 賣出水晶（1顆＝1元）</button>
  <button id="buyBtn">🪵 買木塊（1元＝1塊）</button>
  <button id="buildBtn">🏡 開始蓋房子</button>
- <button id="cityBtn">🏙️ 解鎖霓虹城（100元）</button>
+ <button id="cityBtn">🏙️ 解鎖霓虹城（20元）</button>
 </div><div id="buildHint">建造模式：點擊地面放置木塊，再按一次結束</div>
 <div id="zone">夢境草原・月光之境</div><button id="musicBtn">🎵 選擇音樂</button><button id="ambienceBtn">🌬️ 環境音：關</button><input id="musicFile" type="file" accept="audio/*">
 <script type="module">
@@ -466,9 +466,9 @@ document.querySelector('#jump').addEventListener('pointerdown',()=>{if(onGround)
 document.querySelector('#home').addEventListener('click',()=>{player.position.set(0,heightAt(0,0),0);yaw=0;});
 let cityUnlocked=false;try{cityUnlocked=localStorage.getItem('dreamIslandsCityUnlocked')==='1';}catch(e){}
 const cityBtn=document.querySelector('#cityBtn');
-function refreshCityButton(){cityBtn.textContent=cityUnlocked?'🏙️ 霓虹城已解鎖':'🏙️ 解鎖霓虹城（100元）';cityBtn.disabled=cityUnlocked;}
+function refreshCityButton(){cityBtn.textContent=cityUnlocked?'🏙️ 霓虹城已解鎖':'🏙️ 解鎖霓虹城（20元）';cityBtn.disabled=cityUnlocked;}
 refreshCityButton();
-cityBtn.addEventListener('click',()=>{if(cityUnlocked)return;if(coins<100){cityBtn.textContent='還差 '+(100-coins)+' 元才能解鎖';setTimeout(refreshCityButton,1700);return;}coins-=100;cityUnlocked=true;try{localStorage.setItem('dreamIslandsCityUnlocked','1');localStorage.setItem('dreamIslandsCoins',String(coins));}catch(e){}updateWallet();refreshCityButton();});
+cityBtn.addEventListener('click',()=>{if(cityUnlocked)return;if(coins<20){cityBtn.textContent='還差 '+(20-coins)+' 元才能解鎖';setTimeout(refreshCityButton,1700);return;}coins-=20;cityUnlocked=true;try{localStorage.setItem('dreamIslandsCityUnlocked','1');localStorage.setItem('dreamIslandsCoins',String(coins));}catch(e){}updateWallet();refreshCityButton();});
 const destinations=[{x:0,z:0,name:'夢境草原・月光之境'},{x:-245,z:-235,name:'月霧花園'},{x:275,z:225,name:'水晶洞窟'},{x:-255,z:235,name:'古代星門遺跡'},{x:275,z:-235,name:'雲海港灣'},{x:cliffX,z:cliffZ,name:'月亮瀑布・星光之門'}];let destinationIndex=0;
 document.querySelector('#travel').addEventListener('click',()=>{const available=cityUnlocked?[...destinations,{x:cityX,z:cityZ,name:'紙醉金迷之城'}]:destinations;destinationIndex=(destinationIndex+1)%available.length;const d=available[destinationIndex];player.position.set(d.x,groundAt(d.x,d.z),d.z);vy=0;yaw=0;zone.textContent=d.name;});
 let dragging=false,lastX=0,lastY=0;
