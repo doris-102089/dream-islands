@@ -90,7 +90,25 @@ function heightAt(x,z){
  return THREE.MathUtils.lerp(base,harborLevel,blend);
 }
 const cityX=510,cityZ=0,cityTop=6;
-function groundAt(x,z){return Math.hypot(x-cityX,z-cityZ)<112?cityTop:heightAt(x,z);}
+const mallCenterX=cityX-8,mallCenterZ=55,mallFrontZ=mallCenterZ+38;
+function groundAt(x,z){
+ if(Math.hypot(x-cityX,z-cityZ)<112){
+  // Two broad escalator/ramp lanes connect the entrance level to the upper gallery.
+  for(const rx of [mallCenterX-23,mallCenterX+23]){
+   if(Math.abs(x-rx)<5.8 && z>=mallCenterZ-10 && z<=mallFrontZ-1){
+    const t=THREE.MathUtils.clamp((mallFrontZ-1-z)/(mallFrontZ-1-(mallCenterZ-10)),0,1);
+    return cityTop+12*t;
+   }
+  }
+  const inside=Math.abs(x-mallCenterX)<46 && z>mallCenterZ-37 && z<mallCenterZ+37;
+  if(inside){
+   const inAtrium=Math.abs(x-mallCenterX)<16 && z>mallCenterZ-15 && z<mallCenterZ+17;
+   if(!inAtrium && (Math.abs(x-mallCenterX)>17 || z<mallCenterZ-15 || z>mallCenterZ+17)) return cityTop+12;
+  }
+  return cityTop;
+ }
+ return heightAt(x,z);
+}
 function addMesh(geo,material,x,y,z,sx=1,sy=1,sz=1){const m=new THREE.Mesh(geo,material);m.position.set(x,y,z);m.scale.set(sx,sy,sz);m.castShadow=true;m.receiveShadow=true;scene.add(m);return m;}
 
 // Rich midnight sky: stars, Milky Way dust, moon and halo
@@ -170,132 +188,160 @@ block(cityX,cityZ-68,25);
 for(let i=0;i<6;i++){const x=cityX-30+i*12;addMesh(new THREE.BoxGeometry(7,5,.3),cityGlass,x,cityTop+4,cityZ-56.8);}
 const cityHalo=new THREE.PointLight(0xffd8ad,1.2,150);cityHalo.position.set(cityX,cityTop+32,cityZ);scene.add(cityHalo);
 
-// Open-air outlet shopping district inspired by Taiwan's Linkou outlet atmosphere.
-const mallBase=addMesh(new THREE.BoxGeometry(78,.35,34),new THREE.MeshStandardMaterial({color:0xc9bba7,roughness:.86}),cityX-8,cityTop-.3,cityZ+42);
-const mallWall=new THREE.MeshStandardMaterial({color:0xeee3d3,roughness:.78});
-const mallGlass=new THREE.MeshStandardMaterial({color:0x5e9cae,metalness:.35,roughness:.18,emissive:0x23556a,emissiveIntensity:.65});
-const mallRoof=new THREE.MeshStandardMaterial({color:0x82766a,metalness:.05,roughness:.82});
-// Two warm-lit shopping wings around an open pedestrian lane.
-for(let wing=0;wing<2;wing++){
- const wx=cityX-8+(wing?25:-25),wz=cityZ+43;
- // Hollow, walk-in shopping wing: floor, side/rear walls and a roof.
- addMesh(new THREE.BoxGeometry(26,.7,27),new THREE.MeshStandardMaterial({color:0xc8b9a8,roughness:.8}),wx,cityTop-.35,wz);
- addMesh(new THREE.BoxGeometry(26,13,.8),mallWall,wx,cityTop+6.5,wz-13.2);
- addMesh(new THREE.BoxGeometry(.8,13,27),mallWall,wx-13,cityTop+6.5,wz);
- addMesh(new THREE.BoxGeometry(.8,13,27),mallWall,wx+13,cityTop+6.5,wz);
- addMesh(new THREE.BoxGeometry(8.8,13,.8),mallWall,wx-8.6,cityTop+6.5,wz+13.2);
- addMesh(new THREE.BoxGeometry(8.8,13,.8),mallWall,wx+8.6,cityTop+6.5,wz+13.2);
- addMesh(new THREE.BoxGeometry(29,1.2,30),mallRoof,wx,cityTop+13.6,wz);
- // Collision leaves a wide central doorway on the front of each shop.
- block(wx-13,wz,3);block(wx+13,wz,3);block(wx,wz-13,3);
- for(let floor=0;floor<2;floor++)for(let shop=0;shop<3;shop++){
-  const sx=wx-8+shop*8,sy=cityTop+3.5+floor*6.2,sz=wz+13.65;
-  const windowPane=addMesh(new THREE.BoxGeometry(shop===1?2.0:6.5,4.1,.28),mallGlass,sx,sy,sz);
-  const awning=addMesh(new THREE.BoxGeometry(7,.65,1.8),floor?neonBlue:neonPink,sx,sy+2.45,sz+.7);awning.castShadow=false;
-  const shopLight=new THREE.PointLight(shop%2?0xffd89a:0xffa9db,.85,19);shopLight.position.set(sx,sy,sz+3);scene.add(shopLight);
- }
- // Clothing rails, counters and colourful display pieces inside the ground floor.
- for(let rack=0;rack<3;rack++){
-  const rx=wx-8+rack*8,rz=wz+2;
-  addMesh(new THREE.BoxGeometry(4.5,.45,1.3),goldMat,rx,cityTop+2.0,rz);
-  addMesh(new THREE.BoxGeometry(4.1,2.1,.18),mallGlass,rx,cityTop+3.2,rz);
-  for(let item=0;item<4;item++)addMesh(new THREE.BoxGeometry(.55,1.15,.35),[neonPink,neonBlue,flowerMats[0]][item%3],rx-1.5+item,cityTop+3.0,rz+.9);
- }
- const innerLamp=new THREE.PointLight(0xffd9aa,1.35,28);innerLamp.position.set(wx,cityTop+8,wz+2);scene.add(innerLamp);
-}
-// Bright central outlet sign, lamp strings and pedestrian plaza.
-const signCanvas=document.createElement('canvas');signCanvas.width=512;signCanvas.height=128;const signCtx=signCanvas.getContext('2d');
-signCtx.fillStyle='#2c2444';signCtx.fillRect(0,0,512,128);signCtx.font='bold 54px sans-serif';signCtx.textAlign='center';signCtx.fillStyle='#ffe7b2';signCtx.fillText('LINKOU OUTLET',256,82);
-const signTex=new THREE.CanvasTexture(signCanvas);const sign=addMesh(new THREE.PlaneGeometry(32,8),new THREE.MeshBasicMaterial({map:signTex}),cityX-8,cityTop+17,cityZ+57);sign.rotation.x=0;
-for(let i=0;i<9;i++){const lx=cityX-48+i*10,lz=cityZ+18;const pole=addMesh(new THREE.CylinderGeometry(.16,.22,7,8),goldMat,lx,cityTop+3.5,lz);const bulb=addMesh(new THREE.SphereGeometry(.55,8,8),new THREE.MeshBasicMaterial({color:0xffe2a0}),lx,cityTop+7.2,lz);const lamp=new THREE.PointLight(0xffd99c,.8,22);lamp.position.copy(bulb.position);scene.add(lamp);}
-for(let i=0;i<7;i++){const x=cityX-35+i*11,z=cityZ+65;const planter=addMesh(new THREE.BoxGeometry(5,.7,3),new THREE.MeshStandardMaterial({color:0x4e665b}),x,cityTop+.5,z);const shrub=addMesh(new THREE.SphereGeometry(1.7,9,7),new THREE.MeshStandardMaterial({color:0x4c896f}),x,cityTop+2,z);block(x,z,2.1);}
-
-
-// Five additional explorable districts: each has its own landmark, lights and atmosphere.
-const extraPlaces=[
- {x:-315,z:8,name:'琉璃燈籠小鎮',color:0xffb66e,kind:'town'},
- {x:8,z:315,name:'櫻花月泉島',color:0xffa8d5,kind:'sakura'},
- {x:350,z:260,name:'星帆海岸村',color:0x72dfff,kind:'coast'},
- {x:-320,z:-315,name:'蘑菇祕境森林',color:0xc6a0ff,kind:'mushroom'},
- {x:80,z:-320,name:'風車雲丘',color:0xffe19a,kind:'wind'}
-];
-for(const place of extraPlaces){
- const {x,z,color,kind}=place,y=heightAt(x,z),glowMat=new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:.7});
- // A small welcoming plaza and a glowing landmark mark each district.
- addMesh(new THREE.CylinderGeometry(25,29,2.2,32),new THREE.MeshStandardMaterial({color:0x59627b,roughness:.9}),x,y-0.4,z);
- addMesh(new THREE.CylinderGeometry(8,9,.5,24),new THREE.MeshStandardMaterial({color:0x9b8c9e,roughness:.7}),x,y+1,z);
- const beacon=addMesh(new THREE.OctahedronGeometry(3.8,1),glowMat,x,y+8,z);
- const beaconLight=new THREE.PointLight(color,1.8,65);beaconLight.position.set(x,y+10,z);scene.add(beaconLight);
- if(kind==='town'){
-  for(let i=0;i<8;i++){const a=i*Math.PI/4,h=rand(8,13),hx=x+Math.cos(a)*17,hz=z+Math.sin(a)*17;
-   addMesh(new THREE.BoxGeometry(8,h,7),new THREE.MeshStandardMaterial({color:[0x9e6c62,0x687f9c,0x9a8060,0x8c729a][i%4],roughness:.85}),hx,y+h/2,hz);
-   addMesh(new THREE.ConeGeometry(6,5,4),new THREE.MeshStandardMaterial({color:0x51465e}),hx,y+h+2.5,hz);
-   const win=addMesh(new THREE.BoxGeometry(1.4,2.1,.18),glowMat,hx,y+4,hz+3.58);win.castShadow=false;block(hx,hz,4.8);
-  }
-  for(let i=0;i<12;i++){const a=i*Math.PI/6,lx=x+Math.cos(a)*28,lz=z+Math.sin(a)*28;const pole=addMesh(new THREE.CylinderGeometry(.16,.2,5,7),goldMat,lx,y+2.5,lz);const orb=addMesh(new THREE.SphereGeometry(.55,8,7),glowMat,lx,y+5.2,lz);const lamp=new THREE.PointLight(color,.35,12);lamp.position.copy(orb.position);scene.add(lamp);}
- }else if(kind==='sakura'){
-  for(let i=0;i<19;i++){const tx=x+rand(-30,30),tz=z+rand(-30,30);addMesh(new THREE.CylinderGeometry(.35,.55,6,7),woodMat,tx,y+3,tz);const crown=addMesh(new THREE.SphereGeometry(rand(3.4,5),10,8),new THREE.MeshStandardMaterial({color:0xc979a7,roughness:1}),tx,y+8,tz);crown.scale.y=.8;}
-  const pond=addMesh(new THREE.CylinderGeometry(15,17,.45,40),new THREE.MeshPhysicalMaterial({color:0x6ab9d5,transparent:true,opacity:.8,roughness:.18}),x+4,y+1.3,z-5);
-  const moon=addMesh(new THREE.TorusGeometry(5,.35,8,36),glowMat,x+4,y+4,z-5);moon.rotation.x=Math.PI/2;
- }else if(kind==='coast'){
-  for(let i=0;i<7;i++){const px=x-24+i*8,pz=z+rand(-15,15);addMesh(new THREE.CylinderGeometry(.3,.45,rand(8,15),7),woodMat,px,y+4,pz);addMesh(new THREE.ConeGeometry(4,7,7),new THREE.MeshStandardMaterial({color:0x477d76}),px,y+12,pz);}
-  for(let i=0;i<4;i++){const sail=addMesh(new THREE.ConeGeometry(3.8,9,3),new THREE.MeshStandardMaterial({color:i%2?0xf2d7a0:0x9bd9e8,side:THREE.DoubleSide}),x-18+i*12,y+6,z+25);sail.rotation.z=Math.PI/2;}
- }else if(kind==='mushroom'){
-  for(let i=0;i<24;i++){const mx=x+rand(-32,32),mz=z+rand(-32,32),h=rand(4,10),r=rand(2.8,5);addMesh(new THREE.CylinderGeometry(.55,.8,h,7),new THREE.MeshStandardMaterial({color:0xe3d2b8}),mx,y+h/2,mz);addMesh(new THREE.SphereGeometry(r,10,8),new THREE.MeshStandardMaterial({color:[0x9c73c9,0xc46f9e,0x688eb5][i%3],emissive:0x26173b,emissiveIntensity:.25}),mx,y+h,mz).scale.y=.48;}
- }else{
-  for(let i=0;i<5;i++){const wx=x-22+i*11,wz=z+rand(-12,12);addMesh(new THREE.CylinderGeometry(.55,.8,15,8),woodMat,wx,y+7.5,wz);const blades=new THREE.Group();blades.position.set(wx,y+16,wz);scene.add(blades);for(let b=0;b<4;b++){const blade=addMesh(new THREE.BoxGeometry(1.2,10,.45),glowMat,0,5,0);blade.position.set(0,5,0);blade.rotation.z=b*Math.PI/2;blades.add(blade);} }
+// Large Linkou Mitsui-inspired department store: one connected, walk-in multi-storey mall.
+const mallX=mallCenterX,mallZ=mallCenterZ,front=mallFrontZ;
+const mallFloorMat=new THREE.MeshStandardMaterial({color:0xd8d2c8,roughness:.78});
+const mallWhite=new THREE.MeshStandardMaterial({color:0xf1eee7,roughness:.72});
+const mallStone=new THREE.MeshStandardMaterial({color:0xc8c4bd,roughness:.82});
+const mallGlass=new THREE.MeshPhysicalMaterial({color:0x83b5c4,metalness:.25,roughness:.16,transparent:true,opacity:.72,clearcoat:1});
+const mallDarkGlass=new THREE.MeshPhysicalMaterial({color:0x355c70,metalness:.3,roughness:.18,transparent:true,opacity:.86,clearcoat:1});
+const mallMetal=new THREE.MeshStandardMaterial({color:0x9d9b98,metalness:.72,roughness:.28});
+const mallWarm=new THREE.MeshStandardMaterial({color:0xe8bd82,emissive:0x7d4821,emissiveIntensity:.22,roughness:.55});
+const mallPlant=new THREE.MeshStandardMaterial({color:0x4c8068,roughness:1});
+const mallWood=new THREE.MeshStandardMaterial({color:0x92745b,roughness:.82});
+const mallFloor=addMesh(new THREE.BoxGeometry(94,.8,76),mallFloorMat,mallX,cityTop-.4,mallZ);
+// Large stepped white massing and glass curtain-wall wings.
+addMesh(new THREE.BoxGeometry(96,2,78),mallStone,mallX,cityTop+1,mallZ);
+addMesh(new THREE.BoxGeometry(94,4,74),mallWhite,mallX,cityTop+3,mallZ);
+addMesh(new THREE.BoxGeometry(92,1.2,72),mallStone,mallX,cityTop+5.5,mallZ);
+addMesh(new THREE.BoxGeometry(88,1.2,68),mallWhite,mallX,cityTop+17,mallZ);
+addMesh(new THREE.BoxGeometry(92,1.4,72),mallStone,mallX,cityTop+24,mallZ);
+// Front facade is split around a tall, open entrance.
+addMesh(new THREE.BoxGeometry(31,17,1.4),mallWhite,mallX-31.5,cityTop+13,front);
+addMesh(new THREE.BoxGeometry(31,17,1.4),mallWhite,mallX+31.5,cityTop+13,front);
+addMesh(new THREE.BoxGeometry(30,3,1.4),mallWhite,mallX,cityTop+22,front);
+for(let side of [-1,1]){
+ addMesh(new THREE.BoxGeometry(1.5,19,76),mallWhite,mallX+side*47,cityTop+12,mallZ);
+ addMesh(new THREE.BoxGeometry(1.2,18,1.5),mallStone,mallX+side*47,cityTop+12,mallZ-37);
+ // Tall glass curtain walls on both sides, with fine mullions.
+ for(let z=mallZ-27;z<=mallZ+27;z+=9){
+  addMesh(new THREE.BoxGeometry(.35,13,8.3),mallGlass,mallX+side*46.1,cityTop+11,z);
+  addMesh(new THREE.BoxGeometry(.28,13,.22),mallMetal,mallX+side*45.8,cityTop+11,z);
  }
 }
-
-// Distant layered mountain silhouettes
-for(let i=0;i<50;i++){const a=i/50*Math.PI*2,r=510+rand(-25,55),x=Math.cos(a)*r,z=Math.sin(a)*r,h=rand(70,155);const m=addMesh(new THREE.ConeGeometry(rand(24,46),h,9),mat(i%2?0x596b87:0x71809d),x,h/2-5,z);m.rotation.y=rand(0,6);}
-
-// Breakable trees: each tree is a pivoting group so it can tip over as one object.
-for(let i=0;i<420;i++){
- const x=rand(-340,340),z=rand(-340,340);if(Math.hypot(x,z)<32||Math.hypot(x-170,z+115)<58)continue;
- const y=heightAt(x,z),s=rand(.72,1.3),tree=new THREE.Group();tree.position.set(x,y,z);scene.add(tree);
- const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.32*s,.65*s,6*s,7),woodMat);trunk.position.y=3*s;trunk.castShadow=true;tree.add(trunk);
- const crownMat=leafMats[i%leafMats.length];
- const crown=new THREE.Mesh(new THREE.SphereGeometry(4.2*s,10,9),crownMat);crown.position.set(0,8*s,0);crown.scale.set(1,1.15,1);crown.castShadow=true;tree.add(crown);
- const crown2=new THREE.Mesh(new THREE.SphereGeometry(3.2*s,9,8),leafMats[(i+1)%leafMats.length]);crown2.position.set(rand(-1.6,1.6)*s,10.2*s,rand(-1.5,1.5)*s);crown2.scale.set(.95,.9,.95);crown2.castShadow=true;tree.add(crown2);
- for(let b=0;b<2;b++){const branch=new THREE.Mesh(new THREE.CylinderGeometry(.12*s,.2*s,2.6*s,5),woodMat);branch.position.set((b?1:-1)*1.15*s,5.4*s,0);branch.rotation.z=(b?-.7:.7);branch.castShadow=true;tree.add(branch);}
- const blocker={x,z,r:2.8*s,kind:'tree',object:tree,broken:false};blockers.push(blocker);
-} 
-function breakTree(b,dx,dz){
- if(!b||b.broken)return;b.broken=true;const tree=b.object;blockers.splice(blockers.indexOf(b),1);
- const len=Math.hypot(dx,dz)||1;fallingTrees.push({tree,age:0,fromX:tree.rotation.x,fromZ:tree.rotation.z,toX:(dz/len)*1.12,toZ:-(dx/len)*1.12});treeRespawns.push({tree,x:b.x,z:b.z,r:b.r,kind:'tree',timer:55});
- // A small burst of leaf and wood fragments around the trunk.
- for(let i=0;i<15;i++){const leaf=i%3!==0,mesh=new THREE.Mesh(leaf?new THREE.SphereGeometry(.28,6,5):new THREE.BoxGeometry(.28,.7,.22),leaf?leafMats[i%leafMats.length]:woodMat);mesh.position.set(b.x+rand(-1,1),heightAt(b.x,b.z)+rand(2,8),b.z+rand(-1,1));mesh.castShadow=true;scene.add(mesh);treeDebris.push({mesh,vx:rand(-5,5),vy:rand(2,8),vz:rand(-5,5),life:1.8});}
- if(ambienceContext&&ambienceOn){const t=ambienceContext.currentTime,o=ambienceContext.createOscillator(),g=ambienceContext.createGain();o.type='triangle';o.frequency.setValueAtTime(115,t);o.frequency.exponentialRampToValueAtTime(48,t+.22);g.gain.setValueAtTime(.18,t);g.gain.exponentialRampToValueAtTime(.001,t+.28);o.connect(g);g.connect(ambienceMaster);o.start(t);o.stop(t+.3);}
+// Signature high arched entrance portal with layered trim and tall glazed doors.
+const archOuter=addMesh(new THREE.TorusGeometry(15,1.5,12,64,Math.PI),mallWhite,mallX,cityTop+10,front-.6);
+archOuter.rotation.z=Math.PI;
+const archInner=addMesh(new THREE.TorusGeometry(12.5,.48,10,64,Math.PI),mallMetal,mallX,cityTop+10,front-1.2);
+archInner.rotation.z=Math.PI;
+addMesh(new THREE.BoxGeometry(7.2,12,.5),mallDarkGlass,mallX-7.7,cityTop+7,front-1.6);
+addMesh(new THREE.BoxGeometry(7.2,12,.5),mallDarkGlass,mallX+7.7,cityTop+7,front-1.6);
+for(let dx of [-10.8,-8.8,-6.6,6.6,8.8,10.8]) addMesh(new THREE.BoxGeometry(.16,11,.25),mallMetal,mallX+dx,cityTop+7,front-1.25);
+addMesh(new THREE.BoxGeometry(25,1.2,4),mallStone,mallX,cityTop+.6,front-2.3);
+for(let side of [-1,1]){
+ const col=addMesh(new THREE.CylinderGeometry(1.25,1.55,17,20),mallWhite,mallX+side*16,cityTop+9,front-2.2);
+ addMesh(new THREE.CylinderGeometry(1.8,1.8,.8,20),mallStone,mallX+side*16,cityTop+17.7,front-2.2);
+ addMesh(new THREE.CylinderGeometry(1.8,1.8,.8,20),mallStone,mallX+side*16,cityTop+.7,front-2.2);
 }
-
-// Dense meadow patches with little flowers and grass blades
-for(let patch=0;patch<155;patch++){
- const cx=rand(-330,330),cz=rand(-330,330);if(Math.hypot(cx,cz)<25)continue;
- for(let j=0;j<15;j++){
-  const x=cx+rand(-7,7),z=cz+rand(-7,7),y=heightAt(x,z);
-  const blade=addMesh(new THREE.ConeGeometry(.13,rand(.65,1.35),4),mat(j%3?0x5c936e:0x86a97a),x,y+.45,z);
-  blade.rotation.z=rand(-.35,.35);
-  if(j%4===0){const bloom=addMesh(new THREE.SphereGeometry(.22,7,6),flowerMats[(patch+j)%4],x,y+.95,z);bloom.castShadow=false;}
+// Main interior floor and a true open-to-below central atrium.
+addMesh(new THREE.BoxGeometry(90,.7,72),mallFloorMat,mallX,cityTop+.1,mallZ);
+addMesh(new THREE.BoxGeometry(90,.65,72),mallFloorMat,mallX,cityTop+12,mallZ);
+// Atrium void: remove the centre of the upper deck visually with a dark open well, then frame it with galleries.
+addMesh(new THREE.BoxGeometry(32,.22,31),new THREE.MeshStandardMaterial({color:0x242c35,roughness:.95}),mallX,cityTop+11.72,mallZ);
+for(const z of [mallZ-17,mallZ+17]){
+ addMesh(new THREE.BoxGeometry(90,.55,2.8),mallFloorMat,mallX,cityTop+12,z);
+ addMesh(new THREE.BoxGeometry(90,.35,.3),mallMetal,mallX,cityTop+13.2,z);
+ for(let x=mallX-43;x<=mallX+43;x+=4) addMesh(new THREE.BoxGeometry(.12,1.1,.12),mallMetal,x,cityTop+12.65,z);
+}
+for(const x of [mallX-17,mallX+17]){
+ addMesh(new THREE.BoxGeometry(2.8,.55,72),mallFloorMat,x,cityTop+12,mallZ);
+ addMesh(new THREE.BoxGeometry(.3,.35,72),mallMetal,x,cityTop+13.2,mallZ);
+ for(let z=mallZ-33;z<=mallZ+33;z+=4) addMesh(new THREE.BoxGeometry(.12,1.1,.12),mallMetal,x,cityTop+12.65,z);
+}
+// Open upper-level balconies and glass balustrades.
+for(let side of [-1,1]){
+ addMesh(new THREE.BoxGeometry(26,.6,66),mallFloorMat,mallX+side*32,cityTop+12,mallZ);
+ addMesh(new THREE.BoxGeometry(.3,1.25,66),mallGlass,mallX+side*19,cityTop+12.8,mallZ);
+}
+// Escalators: visible ribbed inclined belts and handrails, with matching walkable sloped lanes.
+for(let side of [-1,1]){
+ const ex=mallX+side*23,lowZ=front-2,highZ=mallZ-10,run=lowZ-highZ,angle=Math.atan2(12,run),len=Math.hypot(run,12);
+ const belt=addMesh(new THREE.BoxGeometry(5.6,.55,len),mallDarkGlass,ex,cityTop+6, (lowZ+highZ)/2);
+ belt.rotation.x=angle;
+ for(let railSide of [-1,1]){
+  const rail=addMesh(new THREE.BoxGeometry(.22,1.05,len),mallMetal,ex+railSide*3,cityTop+6.65,(lowZ+highZ)/2);
+  rail.rotation.x=angle;
+  addMesh(new THREE.BoxGeometry(.3,.3,len),mallWood,ex+railSide*3,cityTop+7.25,(lowZ+highZ)/2).rotation.x=angle;
+ }
+ for(let step=0;step<24;step++){
+  const t=step/23,z=lowZ-run*t,y=cityTop+12*t;
+  const tread=addMesh(new THREE.BoxGeometry(5.2,.12,.42),mallMetal,ex,y,z);
+  tread.rotation.x=angle;
  }
 }
-
-// Rock formations: small clustered stones, not isolated giant boulders
-for(let i=0;i<95;i++){
- const x=rand(-340,340),z=rand(-340,340);if(Math.hypot(x,z)<40)continue;const y=heightAt(x,z);
- const count=3+Math.floor(Math.random()*4);
- block(x,z,4.5);
- for(let j=0;j<count;j++){const s=rand(.45,1.35),m=addMesh(new THREE.DodecahedronGeometry(s,1),rockMats[(i+j)%3],x+rand(-2.8,2.8),y+s*.45,z+rand(-2.8,2.8),rand(.8,1.5),rand(.55,1.1),rand(.8,1.4));m.rotation.set(rand(0,1),rand(0,6),rand(0,1));}
+// Ground-floor shopfronts: real open corridors, counters, racks, signs and warm interior lighting.
+const storeColors=[0xc77fa3,0x7ca9bd,0xd2a66f,0x91aa83,0x9d8bc4,0xd18b75];
+for(let side of [-1,1]){
+ for(let i=0;i<4;i++){
+  const sx=mallX+side*34,sz=mallZ-25+i*16;
+  addMesh(new THREE.BoxGeometry(18,.25,13),mallWood,sx,cityTop+.35,sz);
+  addMesh(new THREE.BoxGeometry(17,6,.45),mallGlass,sx,cityTop+3.6,sz-6.5);
+  addMesh(new THREE.BoxGeometry(17,.45,.8),mallWhite,sx,cityTop+6.7,sz-6.2);
+  addMesh(new THREE.BoxGeometry(12,.35,1),new THREE.MeshStandardMaterial({color:storeColors[(i+(side>0?2:0))%6],emissive:storeColors[(i+(side>0?2:0))%6],emissiveIntensity:.12}),sx,cityTop+6.1,sz-6.9);
+  addMesh(new THREE.BoxGeometry(5,1.2,2),mallWood,sx,cityTop+1.2,sz+1);
+  for(let r=0;r<3;r++) addMesh(new THREE.BoxGeometry(.7,2.2,.65),new THREE.MeshStandardMaterial({color:storeColors[(i+r)%6]}),sx-4+r*4,cityTop+2.1,sz+3);
+  const light=new THREE.PointLight(0xffd6a0,.65,16);light.position.set(sx,cityTop+5,sz+1);scene.add(light);
+ }
 }
-
+// Food court, seating and indoor trees around the atrium.
+for(let i=0;i<6;i++){
+ const x=mallX-12+i*4.8,z=mallZ+25;
+ addMesh(new THREE.CylinderGeometry(.18,.22,2.5,8),mallWood,x,cityTop+1.6,z);
+ addMesh(new THREE.CylinderGeometry(1.5,1.5,.28,16),mallWood,x,cityTop+2.9,z);
+ for(let j=0;j<3;j++) addMesh(new THREE.BoxGeometry(1.1,.6,1.1),mallStone,x+(j-1)*1.9,cityTop+.8,z+2);
+}
+for(let i=0;i<4;i++){
+ const x=mallX-39+i*26,z=mallZ-2;
+ addMesh(new THREE.CylinderGeometry(.35,.5,4,9),mallWood,x,cityTop+2,z);
+ addMesh(new THREE.SphereGeometry(2.5,12,10),mallPlant,x,cityTop+5,z);
+}
+// Upper level boutique storefronts and window bays.
+for(let side of [-1,1]) for(let i=0;i<3;i++){
+ const sx=mallX+side*33,sz=mallZ-23+i*22;
+ addMesh(new THREE.BoxGeometry(18,6,.5),mallGlass,sx,cityTop+16,sz-7);
+ addMesh(new THREE.BoxGeometry(17,.5,1.1),mallWarm,sx,cityTop+19,sz-6.5);
+ addMesh(new THREE.BoxGeometry(13,.4,4),mallWood,sx,cityTop+12.5,sz);
+}
+// Skylight roof framing leaves the atrium open to the night sky.
+for(let x=mallX-43;x<=mallX+43;x+=12){
+ addMesh(new THREE.BoxGeometry(.55,.65,68),mallMetal,x,cityTop+24,mallZ-1);
+}
+for(let z=mallZ-34;z<=mallZ+34;z+=12) addMesh(new THREE.BoxGeometry(88,.45,.55),mallMetal,mallX,cityTop+24,z);
+for(let side of [-1,1]){
+ addMesh(new THREE.BoxGeometry(5,1.2,76),mallWhite,mallX+side*45,cityTop+24.6,mallZ);
+}
+// Bright interior ceiling lights, pendant lights and signage.
+for(let x=mallX-32;x<=mallX+32;x+=16) for(let z=mallZ-25;z<=mallZ+25;z+=17){
+ const lamp=new THREE.PointLight(0xffdfb4,1.15,24);lamp.position.set(x,cityTop+21,z);scene.add(lamp);
+ addMesh(new THREE.SphereGeometry(.34,10,8),new THREE.MeshBasicMaterial({color:0xffe7bd}),x,cityTop+22,z);
+}
+const mallSignCanvas=document.createElement('canvas');mallSignCanvas.width=768;mallSignCanvas.height=180;
+const mallSignCtx=mallSignCanvas.getContext('2d');mallSignCtx.fillStyle='#f7f5ef';mallSignCtx.fillRect(0,0,768,180);
+mallSignCtx.fillStyle='#514b48';mallSignCtx.font='bold 66px sans-serif';mallSignCtx.textAlign='center';mallSignCtx.fillText('MITSUI OUTLET PARK',384,112);
+const mallSignTex=new THREE.CanvasTexture(mallSignCanvas);
+addMesh(new THREE.PlaneGeometry(34,8),new THREE.MeshBasicMaterial({map:mallSignTex}),mallX,cityTop+22,front-1.1);
+// Architectural collision boundaries; the centre entrance remains completely open.
+for(let x=mallX-43;x<=mallX+43;x+=8){
+ if(Math.abs(x-mallX)>12) block(x,front-1,4.2);
+}
+for(let z=mallZ-32;z<=mallZ+32;z+=8){block(mallX-46,z,4.2);block(mallX+46,z,4.2);}
+for(let x=mallX-42;x<=mallX+42;x+=8) block(x,mallZ-37,4.2);
+// Landscaped forecourt and wide entrance steps.
+addMesh(new THREE.BoxGeometry(46,.5,15),mallStone,mallX,cityTop-.1,front+8);
+for(let i=0;i<4;i++) addMesh(new THREE.BoxGeometry(38,.35,1.5),mallWhite,mallX,cityTop+.15+i*.28,front+13-i*1.5);
+for(let side of [-1,1]){
+ const planter=addMesh(new THREE.BoxGeometry(8,1.2,5),mallStone,mallX+side*29,cityTop+.6,front+8);
+ for(let j=0;j<4;j++) addMesh(new THREE.SphereGeometry(1.1,9,8),mallPlant,mallX+side*29-2.5+j*1.7,cityTop+2,front+8);
+}
+const mallHalo=new THREE.PointLight(0xffe2bd,2.0,100);mallHalo.position.set(mallX,cityTop+18,mallZ);scene.add(mallHalo);
 // Friendly cosmetics shopkeeper standing in the outlet pedestrian plaza.
 const clerk=new THREE.Group();
 const clerkBody=new THREE.Mesh(new THREE.CapsuleGeometry(.72,1.7,4,10),new THREE.MeshStandardMaterial({color:0xf0d7c5,roughness:.8}));clerkBody.position.y=1.55;clerk.add(clerkBody);
 const clerkHead=new THREE.Mesh(new THREE.SphereGeometry(.62,16,12),new THREE.MeshStandardMaterial({color:0xffdfc9,roughness:.85}));clerkHead.position.y=3.05;clerk.add(clerkHead);
 const clerkHair=new THREE.Mesh(new THREE.SphereGeometry(.67,16,10),new THREE.MeshStandardMaterial({color:0x49334a,roughness:1}));clerkHair.scale.set(1,1,.85);clerkHair.position.set(0,3.25,-.08);clerk.add(clerkHair);
 const clerkApron=new THREE.Mesh(new THREE.BoxGeometry(1.12,1.35,.16),new THREE.MeshStandardMaterial({color:0xc77da9,roughness:.7}));clerkApron.position.set(0,1.75,.57);clerk.add(clerkApron);
-clerk.position.set(cityX-8,cityTop,cityZ+18);scene.add(clerk);
-const clerkLamp=new THREE.PointLight(0xffc9e5,1.2,16);clerkLamp.position.set(cityX-8,cityTop+4.2,cityZ+18);scene.add(clerkLamp);
+clerk.position.set(mallX+8,cityTop, mallZ+5);scene.add(clerk);
+const clerkLamp=new THREE.PointLight(0xffc9e5,1.2,16);clerkLamp.position.set(mallX+8,cityTop+4.2,mallZ+5);scene.add(clerkLamp);
 // Moonfall waterfall v2: a curved, segmented water sheet that hugs the cliff face.
 const cliffX=175,cliffZ=-115,cliffY=heightAt(cliffX,cliffZ);
 for(let i=0;i<11;i++){
@@ -604,11 +650,11 @@ document.querySelector('#jump').addEventListener('pointerdown',()=>{if(onGround&
 document.querySelector('#home').addEventListener('click',()=>{player.position.set(0,heightAt(0,0),0);yaw=0;});
 let cityUnlocked=false;try{cityUnlocked=localStorage.getItem('dreamIslandsCityUnlocked')==='1';}catch(e){}
 const cityBtn=document.querySelector('#cityBtn');
-function refreshCityButton(){cityBtn.textContent=cityUnlocked?'🏙️ 霓虹城已解鎖':'🛍️ 解鎖林口三井 Outlet（20元）';cityBtn.disabled=cityUnlocked;}
+function refreshCityButton(){cityBtn.textContent=cityUnlocked?'🛍️ 林口三井 Outlet 已解鎖':'🛍️ 解鎖林口三井 Outlet（20元）';cityBtn.disabled=cityUnlocked;}
 refreshCityButton();
 cityBtn.addEventListener('click',()=>{if(cityUnlocked)return;if(coins<20){cityBtn.textContent='還差 '+(20-coins)+' 元才能解鎖';setTimeout(refreshCityButton,1700);return;}coins-=20;cityUnlocked=true;try{localStorage.setItem('dreamIslandsCityUnlocked','1');localStorage.setItem('dreamIslandsCoins',String(coins));}catch(e){}updateWallet();refreshCityButton();});
 const destinations=[{x:0,z:0,name:'夢境草原・月光之境'},{x:-245,z:-235,name:'月霧花園'},{x:275,z:225,name:'水晶洞窟'},{x:-255,z:235,name:'古代星門遺跡'},{x:275,z:-235,name:'雲海港灣'},{x:cliffX,z:cliffZ,name:'月亮瀑布・星光之門'},{x:-315,z:8,name:'琉璃燈籠小鎮'},{x:8,z:315,name:'櫻花月泉島'},{x:350,z:260,name:'星帆海岸村'},{x:-320,z:-315,name:'蘑菇祕境森林'},{x:80,z:-320,name:'風車雲丘'}];let destinationIndex=0;
-document.querySelector('#travel').addEventListener('click',()=>{const available=cityUnlocked?[...destinations,{x:cityX,z:cityZ,name:'林口三井 Outlet 購物城'}]:destinations;destinationIndex=(destinationIndex+1)%available.length;const d=available[destinationIndex];player.position.set(d.x,groundAt(d.x,d.z),d.z);vy=0;yaw=0;zone.textContent=d.name;});
+document.querySelector('#travel').addEventListener('click',()=>{const available=cityUnlocked?[...destinations,{x:mallX,z:front+10,name:'林口三井 Outlet・正門入口'}]:destinations;destinationIndex=(destinationIndex+1)%available.length;const d=available[destinationIndex];player.position.set(d.x,groundAt(d.x,d.z),d.z);vy=0;yaw=0;zone.textContent=d.name;});
 let dragging=false,lastX=0,lastY=0;
 renderer.domElement.addEventListener('pointerdown',e=>{if(e.clientX>145&&e.clientY<innerHeight-145){dragging=true;lastX=e.clientX;lastY=e.clientY;renderer.domElement.setPointerCapture(e.pointerId);}});
 renderer.domElement.addEventListener('pointermove',e=>{if(dragging){yaw-=(e.clientX-lastX)*.005;pitch=THREE.MathUtils.clamp(pitch+(e.clientY-lastY)*.003,-.15,.8);lastX=e.clientX;lastY=e.clientY;}});
@@ -666,7 +712,7 @@ function animate(){
  harborRipples.forEach((r,i)=>{r.scale.x=1.2+Math.sin(worldClock.elapsedTime*.8+r.userData.phase)*.18;r.material.opacity=.15+Math.max(0,Math.sin(worldClock.elapsedTime*1.2+r.userData.phase))*.16;});
  cloudSea.children.forEach((g,i)=>{g.position.x+=Math.sin(worldClock.elapsedTime*.08+g.userData.phase)*dt*.7;g.position.z+=Math.cos(worldClock.elapsedTime*.07+g.userData.phase)*dt*.45;});
  harborFireflies.forEach((f)=>{f.position.y=f.userData.baseY+Math.sin(worldClock.elapsedTime*1.4+f.userData.phase)*1.2;f.material.opacity=.25+.65*(.5+.5*Math.sin(worldClock.elapsedTime*2+f.userData.phase));});
- stars.rotation.y+=dt*.0008;falls.forEach((f,i)=>{const a=f.geometry.attributes.position;for(let k=0;k<a.count;k++){const x=a.getX(k),y=a.getY(k),z=a.getZ(k);a.setX(k,x+Math.sin(worldClock.elapsedTime*2.2+y*.22+i)*.018);a.setZ(k,z+Math.sin(worldClock.elapsedTime*2.8+y*.3+i)*.025);}a.needsUpdate=true;});const nearClerk=!driving&&Math.hypot(player.position.x-(cityX-8),player.position.z-(cityZ+18))<11; npcBuy.style.display=nearClerk?'block':'none';renderer.render(scene,camera);
+ stars.rotation.y+=dt*.0008;falls.forEach((f,i)=>{const a=f.geometry.attributes.position;for(let k=0;k<a.count;k++){const x=a.getX(k),y=a.getY(k),z=a.getZ(k);a.setX(k,x+Math.sin(worldClock.elapsedTime*2.2+y*.22+i)*.018);a.setZ(k,z+Math.sin(worldClock.elapsedTime*2.8+y*.3+i)*.025);}a.needsUpdate=true;});const nearClerk=!driving&&Math.hypot(player.position.x-(mallX+8),player.position.z-(mallZ+5))<11; npcBuy.style.display=nearClerk?'block':'none';renderer.render(scene,camera);
 }
 animate();document.querySelector('#loading').style.display='none';
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
