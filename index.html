@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>夢境群島 Dream Islands｜月瀑星夜・星光彩妝店</title>
+<title>夢境群島 Dream Islands｜月瀑星夜・群島商店版</title>
 <style>
 *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#10132f;font-family:system-ui,"Noto Sans TC",sans-serif;touch-action:none}
 #game{position:fixed;inset:0}canvas{display:block}
@@ -52,12 +52,11 @@
 </div>
 <div id="staminaBox">⚡ 體力 <span id="staminaText">100/100</span><div id="staminaTrack"><div id="staminaFill"></div></div></div>
 <button id="npcBuy">💄 店員購買</button>
-<div id="shopPanel"><h3>💄 星光彩妝與服飾店</h3><p>找到店員並靠近她，點擊頭上的購買圖示。彩妝筆每種顏色只要 2～3 金幣，買過的顏色可以隨時使用。</p>
-<h4>🎨 彩妝筆顏色</h4><div id="makeupColors" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px"></div><p id="makeupMessage">選擇喜歡的顏色，替小人畫上專屬妝容！</p>
-<button data-outfit="rose">🌸 櫻花披風（5 鑽石）</button>
-<button data-outfit="ocean">🌊 星海旅人（8 鑽石）</button>
-<button data-outfit="gold">✨ 金色星辰（12 鑽石）</button>
-<button id="foodBtn">🍰 買月光蛋糕（3 金幣，恢復 45 體力）</button>
+<div id="shopPanel"><h3 id="shopTitle">🛍️ 林口三井 Outlet 商店</h3><p id="shopIntro">靠近不同店員，購買不同種類的商品。</p>
+<div id="makeupStore" data-store-section><h4>🎨 彩妝專櫃</h4><div id="makeupColors" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px"></div><p id="makeupMessage">選擇喜歡的顏色，替小人畫上專屬妝容！</p></div>
+<div id="fashionStore" data-store-section style="display:none"><h4>👗 服飾專櫃</h4><p>這裡販售可收藏、可重複穿搭的服裝。</p><button data-outfit="rose">🌸 櫻花披風（5 鑽石）</button><button data-outfit="ocean">🌊 星海旅人（8 鑽石）</button><button data-outfit="gold">✨ 金色星辰（12 鑽石）</button></div>
+<div id="foodStore" data-store-section style="display:none"><h4>🍰 美食專櫃</h4><p>補充探索體力的點心。</p><button id="foodBtn">🍰 買月光蛋糕（3 金幣，恢復 45 體力）</button></div>
+<div id="accessoryStore" data-store-section style="display:none"><h4>✨ 飾品專櫃</h4><p>購買星光飾品，讓角色更有特色。</p><button data-accessory="star">⭐ 星星髮飾（4 金幣）</button><button data-accessory="moon">🌙 月亮耳飾（5 金幣）</button><button data-accessory="butterfly">🦋 蝴蝶胸針（6 金幣）</button></div>
 <button id="shopClose">關閉商店</button></div>
 <div id="buildHint">建造模式：點擊地面放置木塊，再按一次結束</div>
 <div id="zone">夢境草原・月光之境</div><button id="musicBtn">🎵 選擇音樂</button><button id="ambienceBtn">🌬️ 環境音：關</button><input id="musicFile" type="file" accept="audio/*">
@@ -364,6 +363,51 @@ const clerkHair=new THREE.Mesh(new THREE.SphereGeometry(.67,16,10),new THREE.Mes
 const clerkApron=new THREE.Mesh(new THREE.BoxGeometry(1.12,1.35,.16),new THREE.MeshStandardMaterial({color:0xc77da9,roughness:.7}));clerkApron.position.set(0,1.75,.57);clerk.add(clerkApron);
 clerk.position.set(mallX+8,cityTop, mallZ+5);scene.add(clerk);
 const clerkLamp=new THREE.PointLight(0xffc9e5,1.2,16);clerkLamp.position.set(mallX+8,cityTop+4.2,mallZ+5);scene.add(clerkLamp);
+// Several independent shopkeepers, each assigned to a different department.
+const shopkeepers=[{group:clerk,x:mallX+8,z:mallZ+5,type:'makeup',title:'🎨 星光彩妝專櫃',label:'💄 彩妝店員' }];
+function addShopkeeper(x,z,type,title,label,color){const g=clerk.clone(true);g.position.set(x,cityTop,z);g.traverse(o=>{if(o.isMesh&&o.material&&o.material.color&&o.geometry.type==='BoxGeometry')o.material=o.material.clone();});const apron=g.children.find(o=>o.geometry&&o.geometry.type==='BoxGeometry');if(apron&&apron.material.color)apron.material.color.setHex(color);scene.add(g);const l=new THREE.PointLight(color,1.0,13);l.position.set(x,cityTop+4.2,z);scene.add(l);shopkeepers.push({group:g,x,z,type,title,label});}
+addShopkeeper(mallX-25,mallZ+5,'fashion','👗 服飾精品專櫃','👗 服飾店員',0x83a9d9);
+addShopkeeper(mallX+27,mallZ+5,'food','🍰 美食甜點專櫃','🍰 美食店員',0xe6a76d);
+addShopkeeper(mallX-25,mallZ-20,'accessory','✨ 星光飾品專櫃','✨ 飾品店員',0xc69be8);
+addShopkeeper(mallX+27,mallZ-20,'makeup','🌸 香氛彩妝專櫃','🌸 彩妝店員',0xe58eae);
+let activeShop='makeup';
+// Five additional explorable districts: each has its own landmark, lights and atmosphere.
+const extraPlaces=[
+ {x:-315,z:8,name:'琉璃燈籠小鎮',color:0xffb66e,kind:'town'},
+ {x:8,z:315,name:'櫻花月泉島',color:0xffa8d5,kind:'sakura'},
+ {x:350,z:260,name:'星帆海岸村',color:0x72dfff,kind:'coast'},
+ {x:-320,z:-315,name:'蘑菇祕境森林',color:0xc6a0ff,kind:'mushroom'},
+ {x:80,z:-320,name:'風車雲丘',color:0xffe19a,kind:'wind'}
+];
+for(const place of extraPlaces){
+ const {x,z,color,kind}=place,y=heightAt(x,z),glowMat=new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:.7});
+ // A small welcoming plaza and a glowing landmark mark each district.
+ addMesh(new THREE.CylinderGeometry(25,29,2.2,32),new THREE.MeshStandardMaterial({color:0x59627b,roughness:.9}),x,y-0.4,z);
+ addMesh(new THREE.CylinderGeometry(8,9,.5,24),new THREE.MeshStandardMaterial({color:0x9b8c9e,roughness:.7}),x,y+1,z);
+ const beacon=addMesh(new THREE.OctahedronGeometry(3.8,1),glowMat,x,y+8,z);
+ const beaconLight=new THREE.PointLight(color,1.8,65);beaconLight.position.set(x,y+10,z);scene.add(beaconLight);
+ if(kind==='town'){
+  for(let i=0;i<8;i++){const a=i*Math.PI/4,h=rand(8,13),hx=x+Math.cos(a)*17,hz=z+Math.sin(a)*17;
+   addMesh(new THREE.BoxGeometry(8,h,7),new THREE.MeshStandardMaterial({color:[0x9e6c62,0x687f9c,0x9a8060,0x8c729a][i%4],roughness:.85}),hx,y+h/2,hz);
+   addMesh(new THREE.ConeGeometry(6,5,4),new THREE.MeshStandardMaterial({color:0x51465e}),hx,y+h+2.5,hz);
+   const win=addMesh(new THREE.BoxGeometry(1.4,2.1,.18),glowMat,hx,y+4,hz+3.58);win.castShadow=false;block(hx,hz,4.8);
+  }
+  for(let i=0;i<12;i++){const a=i*Math.PI/6,lx=x+Math.cos(a)*28,lz=z+Math.sin(a)*28;const pole=addMesh(new THREE.CylinderGeometry(.16,.2,5,7),goldMat,lx,y+2.5,lz);const orb=addMesh(new THREE.SphereGeometry(.55,8,7),glowMat,lx,y+5.2,lz);const lamp=new THREE.PointLight(color,.35,12);lamp.position.copy(orb.position);scene.add(lamp);}
+ }else if(kind==='sakura'){
+  for(let i=0;i<19;i++){const tx=x+rand(-30,30),tz=z+rand(-30,30);addMesh(new THREE.CylinderGeometry(.35,.55,6,7),woodMat,tx,y+3,tz);const crown=addMesh(new THREE.SphereGeometry(rand(3.4,5),10,8),new THREE.MeshStandardMaterial({color:0xc979a7,roughness:1}),tx,y+8,tz);crown.scale.y=.8;}
+  const pond=addMesh(new THREE.CylinderGeometry(15,17,.45,40),new THREE.MeshPhysicalMaterial({color:0x6ab9d5,transparent:true,opacity:.8,roughness:.18}),x+4,y+1.3,z-5);
+  const moon=addMesh(new THREE.TorusGeometry(5,.35,8,36),glowMat,x+4,y+4,z-5);moon.rotation.x=Math.PI/2;
+ }else if(kind==='coast'){
+  for(let i=0;i<7;i++){const px=x-24+i*8,pz=z+rand(-15,15);addMesh(new THREE.CylinderGeometry(.3,.45,rand(8,15),7),woodMat,px,y+4,pz);addMesh(new THREE.ConeGeometry(4,7,7),new THREE.MeshStandardMaterial({color:0x477d76}),px,y+12,pz);}
+  for(let i=0;i<4;i++){const sail=addMesh(new THREE.ConeGeometry(3.8,9,3),new THREE.MeshStandardMaterial({color:i%2?0xf2d7a0:0x9bd9e8,side:THREE.DoubleSide}),x-18+i*12,y+6,z+25);sail.rotation.z=Math.PI/2;}
+ }else if(kind==='mushroom'){
+  for(let i=0;i<24;i++){const mx=x+rand(-32,32),mz=z+rand(-32,32),h=rand(4,10),r=rand(2.8,5);addMesh(new THREE.CylinderGeometry(.55,.8,h,7),new THREE.MeshStandardMaterial({color:0xe3d2b8}),mx,y+h/2,mz);addMesh(new THREE.SphereGeometry(r,10,8),new THREE.MeshStandardMaterial({color:[0x9c73c9,0xc46f9e,0x688eb5][i%3],emissive:0x26173b,emissiveIntensity:.25}),mx,y+h,mz).scale.y=.48;}
+ }else{
+  for(let i=0;i<5;i++){const wx=x-22+i*11,wz=z+rand(-12,12);addMesh(new THREE.CylinderGeometry(.55,.8,15,8),woodMat,wx,y+7.5,wz);const blades=new THREE.Group();blades.position.set(wx,y+16,wz);scene.add(blades);for(let b=0;b<4;b++){const blade=addMesh(new THREE.BoxGeometry(1.2,10,.45),glowMat,0,5,0);blade.position.set(0,5,0);blade.rotation.z=b*Math.PI/2;blades.add(blade);} }
+ }
+}
+
+
 // Moonfall waterfall v2: a curved, segmented water sheet that hugs the cliff face.
 const cliffX=175,cliffZ=-115,cliffY=heightAt(cliffX,cliffZ);
 for(let i=0;i<11;i++){
@@ -651,7 +695,9 @@ applyMakeup(equippedMakeup);
 const makeupPalette=[['玫瑰粉','#ff9eb5',2],['蜜桃橘','#ffad8f',2],['櫻花粉','#ffb8d8',2],['莓果紅','#d94b78',3],['珊瑚橘','#ff765e',2],['薰衣草紫','#c69bff',2],['夢幻藍','#79caff',3],['薄荷綠','#7ce0c1',2],['香檳金','#f2cf83',3],['星塵銀','#cbd8ee',3],['奶茶棕','#bd8b75',2],['葡萄紫','#9d65c9',3],['夕陽橙','#ff914d',2],['冰晶青','#73e5e8',3],['莓奶茶','#c77c91',2],['月光白','#f2e8ff',3]];
 const makeupWrap=document.querySelector('#makeupColors'),makeupMessage=document.querySelector('#makeupMessage');
 makeupPalette.forEach(([name,hex,cost])=>{const b=document.createElement('button');b.style.cssText=`padding:7px 3px;border-radius:10px;border:2px solid #ffffff88;background:${hex};color:#241a2a;font-size:10px;font-weight:900;min-height:47px;text-shadow:0 1px 1px #fff8`;b.textContent=name+'\n'+cost+'元';b.addEventListener('click',()=>{if(!ownedMakeup.includes(hex)){if(coins<cost){makeupMessage.textContent='金幣不足，這支彩妝筆需要 '+cost+' 元';return;}coins-=cost;ownedMakeup.push(hex);try{localStorage.setItem('dreamIslandsMakeup',JSON.stringify(ownedMakeup));}catch(e){}}applyMakeup(hex);updateWallet();makeupMessage.textContent='已使用 '+name+' 彩妝筆！';});makeupWrap.appendChild(b);});
-const shopPanel=document.querySelector('#shopPanel'),npcBuy=document.querySelector('#npcBuy');npcBuy.addEventListener('click',()=>{shopPanel.style.display='block';});document.querySelector('#shopClose').addEventListener('click',()=>{shopPanel.style.display='none';});
+const shopPanel=document.querySelector('#shopPanel'),npcBuy=document.querySelector('#npcBuy');function openShop(type,title){activeShop=type;document.querySelector('#shopTitle').textContent=title;document.querySelectorAll('[data-store-section]').forEach(el=>el.style.display='none');const section=document.querySelector('#'+({makeup:'makeupStore',fashion:'fashionStore',food:'foodStore',accessory:'accessoryStore'}[type]));if(section)section.style.display='block';document.querySelector('#shopIntro').textContent='這位店員只販售這個專櫃的商品。';shopPanel.style.display='block';}npcBuy.addEventListener('click',()=>openShop(activeShop,activeShopTitle));document.querySelector('#shopClose').addEventListener('click',()=>{shopPanel.style.display='none';});
+let activeShopTitle='🎨 星光彩妝專櫃';
+document.querySelectorAll('[data-accessory]').forEach(btn=>btn.addEventListener('click',()=>{const id=btn.dataset.accessory,prices={star:4,moon:5,butterfly:6},names={star:'星星髮飾',moon:'月亮耳飾',butterfly:'蝴蝶胸針'};let owned=[];try{owned=JSON.parse(localStorage.getItem('dreamIslandsAccessories')||'[]');}catch(e){}if(owned.includes(id)){btn.textContent='✓ 已收藏：'+names[id];return;}if(coins<prices[id]){btn.textContent='金幣不足，還差 '+(prices[id]-coins)+' 元';return;}coins-=prices[id];owned.push(id);try{localStorage.setItem('dreamIslandsAccessories',JSON.stringify(owned));}catch(e){}updateWallet();btn.textContent='✓ 已收藏：'+names[id];}));
 const outfitPrices={rose:5,ocean:8,gold:12};
 shopPanel.querySelectorAll('[data-outfit]').forEach(btn=>{const id=btn.dataset.outfit;const names={rose:'櫻花披風',ocean:'星海旅人',gold:'金色星辰'};function refresh(){btn.textContent=ownedOutfits.includes(id)?(equippedOutfit===id?'✓ 已穿上：':'👕 穿上：')+names[id]:'🛍️ '+names[id]+'（'+outfitPrices[id]+' 鑽石）';}refresh();btn.addEventListener('click',()=>{if(!ownedOutfits.includes(id)){if(crystals<outfitPrices[id]){btn.textContent='鑽石不足，還差 '+(outfitPrices[id]-crystals)+' 顆';setTimeout(refresh,1300);return;}crystals-=outfitPrices[id];ownedOutfits.push(id);try{localStorage.setItem('dreamIslandsOutfits',JSON.stringify(ownedOutfits));}catch(e){}}equipOutfit(id);updateWallet();shopPanel.querySelectorAll('[data-outfit]').forEach(b=>{const k=b.dataset.outfit;b.textContent=ownedOutfits.includes(k)?(equippedOutfit===k?'✓ 已穿上：':'👕 穿上：')+names[k]:'🛍️ '+names[k]+'（'+outfitPrices[k]+' 鑽石）';});});});
 document.querySelector('#foodBtn').addEventListener('click',()=>{if(coins<3){document.querySelector('#foodBtn').textContent='金幣不足，還需要 3 元';setTimeout(()=>document.querySelector('#foodBtn').textContent='🍰 買月光蛋糕（3 金幣，恢復 45 體力）',1300);return;}if(stamina>=staminaMax){document.querySelector('#foodBtn').textContent='體力已經滿了！';setTimeout(()=>document.querySelector('#foodBtn').textContent='🍰 買月光蛋糕（3 金幣，恢復 45 體力）',1100);return;}coins-=3;stamina=Math.min(staminaMax,stamina+45);updateStamina();updateWallet();});
@@ -742,7 +788,7 @@ function animate(){
  harborRipples.forEach((r,i)=>{r.scale.x=1.2+Math.sin(worldClock.elapsedTime*.8+r.userData.phase)*.18;r.material.opacity=.15+Math.max(0,Math.sin(worldClock.elapsedTime*1.2+r.userData.phase))*.16;});
  cloudSea.children.forEach((g,i)=>{g.position.x+=Math.sin(worldClock.elapsedTime*.08+g.userData.phase)*dt*.7;g.position.z+=Math.cos(worldClock.elapsedTime*.07+g.userData.phase)*dt*.45;});
  harborFireflies.forEach((f)=>{f.position.y=f.userData.baseY+Math.sin(worldClock.elapsedTime*1.4+f.userData.phase)*1.2;f.material.opacity=.25+.65*(.5+.5*Math.sin(worldClock.elapsedTime*2+f.userData.phase));});
- stars.rotation.y+=dt*.0008;falls.forEach((f,i)=>{const a=f.geometry.attributes.position;for(let k=0;k<a.count;k++){const x=a.getX(k),y=a.getY(k),z=a.getZ(k);a.setX(k,x+Math.sin(worldClock.elapsedTime*2.2+y*.22+i)*.018);a.setZ(k,z+Math.sin(worldClock.elapsedTime*2.8+y*.3+i)*.025);}a.needsUpdate=true;});const nearClerk=!driving&&Math.hypot(player.position.x-(mallX+8),player.position.z-(mallZ+5))<11; npcBuy.style.display=nearClerk?'block':'none';renderer.render(scene,camera);
+ stars.rotation.y+=dt*.0008;falls.forEach((f,i)=>{const a=f.geometry.attributes.position;for(let k=0;k<a.count;k++){const x=a.getX(k),y=a.getY(k),z=a.getZ(k);a.setX(k,x+Math.sin(worldClock.elapsedTime*2.2+y*.22+i)*.018);a.setZ(k,z+Math.sin(worldClock.elapsedTime*2.8+y*.3+i)*.025);}a.needsUpdate=true;});let nearestKeeper=null,nearestDist=1e9;if(!driving){for(const k of shopkeepers){const d=Math.hypot(player.position.x-k.x,player.position.z-k.z);if(d<nearestDist){nearestDist=d;nearestKeeper=k;}}}const nearClerk=nearestKeeper&&nearestDist<10;npcBuy.style.display=nearClerk?'block':'none';if(nearClerk){activeShop=nearestKeeper.type;activeShopTitle=nearestKeeper.title;npcBuy.textContent='🛍️ '+nearestKeeper.label+'｜購買';}renderer.render(scene,camera);
 }
 animate();document.querySelector('#loading').style.display='none';
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
