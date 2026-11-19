@@ -48,7 +48,7 @@
  <button id="sellBtn">💰 賣出水晶（1顆＝1元）</button>
  <button id="buyBtn">🪵 買木塊（1元＝1塊）</button>
  <button id="buildBtn">🏡 開始蓋房子</button>
- <button id="cityBtn">🏙️ 解鎖霓虹城（20元）</button>
+ <button id="cityBtn">🛍️ 解鎖林口三井 Outlet（20元）</button>
 </div>
 <div id="staminaBox">⚡ 體力 <span id="staminaText">100/100</span><div id="staminaTrack"><div id="staminaFill"></div></div></div>
 <button id="npcBuy">💄 店員購買</button>
@@ -126,44 +126,55 @@ for(let i=0;i<pos.count;i++){const x=pos.getX(i),z=pos.getZ(i),h=heightAt(x,z);p
 geo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));geo.computeVertexNormals();
 const terrain=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1}));terrain.receiveShadow=true;scene.add(terrain);
 
-// The unlocked second island: a lavish neon night city with gold towers, canals and fountains.
-const cityIsland=new THREE.Mesh(new THREE.CylinderGeometry(112,126,18,72),new THREE.MeshStandardMaterial({color:0x34334e,roughness:.9,metalness:.12}));cityIsland.position.set(cityX,-3,cityZ);cityIsland.receiveShadow=true;cityIsland.castShadow=true;scene.add(cityIsland);
-const cityTopMat=new THREE.MeshStandardMaterial({color:0x28263d,roughness:.72,metalness:.22});
-addMesh(new THREE.CylinderGeometry(108,108,1.2,72),cityTopMat,cityX,cityTop-.65,cityZ);
-// A short illuminated bridge connects the natural island to the city island.
-const bridgeMat=new THREE.MeshStandardMaterial({color:0x51415f,metalness:.45,roughness:.4});
+// The unlocked second island: rebuilt as a warm, detailed Linkou-style outlet town.
+const cityIsland=new THREE.Mesh(new THREE.CylinderGeometry(112,126,18,96),new THREE.MeshStandardMaterial({color:0x8a8278,roughness:.96}));cityIsland.position.set(cityX,-3,cityZ);cityIsland.receiveShadow=true;cityIsland.castShadow=true;scene.add(cityIsland);
+const cityTopMat=new THREE.MeshStandardMaterial({color:0xb8aa98,roughness:.92});
+addMesh(new THREE.CylinderGeometry(108,108,1.2,96),cityTopMat,cityX,cityTop-.65,cityZ);
+// Wide stone pedestrian bridge and landscaped entrance.
+const bridgeMat=new THREE.MeshStandardMaterial({color:0xb7a995,roughness:.85});
 addMesh(new THREE.BoxGeometry(48,2.2,13),bridgeMat,cityX-137,cityTop-1,cityZ);
-const goldMat=new THREE.MeshStandardMaterial({color:0xd9ae62,metalness:.72,roughness:.24,emissive:0x6d3e16,emissiveIntensity:.24});
-const neonPink=new THREE.MeshStandardMaterial({color:0xff70d7,emissive:0xe52cb7,emissiveIntensity:1.25,metalness:.25,roughness:.3});
-const neonBlue=new THREE.MeshStandardMaterial({color:0x75dfff,emissive:0x2388ff,emissiveIntensity:1.1,metalness:.25,roughness:.3});
-const cityGlass=new THREE.MeshStandardMaterial({color:0x242d59,metalness:.65,roughness:.18,emissive:0x18265a,emissiveIntensity:.38});
-// Central open plaza with a luminous fountain.
-const plaza=addMesh(new THREE.CylinderGeometry(28,28,.45,48),new THREE.MeshStandardMaterial({color:0x77708d,metalness:.55,roughness:.25}),cityX,cityTop+.05,cityZ);
-const fountain=addMesh(new THREE.CylinderGeometry(9,12,2,32),goldMat,cityX,cityTop+1.2,cityZ);
-const fountainWater=addMesh(new THREE.CylinderGeometry(8.5,8.5,.35,32),new THREE.MeshPhysicalMaterial({color:0x72dcff,emissive:0x168dce,emissiveIntensity:.8,transparent:true,opacity:.88,roughness:.12,metalness:.25}),cityX,cityTop+2.35,cityZ);
-const fountainGlow=new THREE.PointLight(0x68cfff,2.8,75);fountainGlow.position.set(cityX,cityTop+9,cityZ);scene.add(fountainGlow);
-// Solid collision zones for city structures. The player and car must go around them.
-block(cityX,cityZ,12); // fountain
-// Grand hotel and varied skyscrapers around the plaza.
-for(let i=0;i<22;i++){const a=i/22*Math.PI*2,r=rand(43,88),x=cityX+Math.cos(a)*r,z=cityZ+Math.sin(a)*r;const h=rand(22,78),w=rand(8,15),d=rand(8,15);
- const tower=addMesh(new THREE.BoxGeometry(w,h,d),i%4===0?goldMat:cityGlass,x,cityTop+h/2,z);
- block(x,z,Math.max(w,d)*.68);
- const roof=addMesh(new THREE.CylinderGeometry(w*.22,w*.55,rand(4,10),8),i%3===0?neonPink:goldMat,x,cityTop+h+2,z);
- for(let k=1;k<Math.floor(h/7);k++){const band=addMesh(new THREE.BoxGeometry(w+.25,.38,d+.25),i%2?neonBlue:neonPink,x,cityTop+k*7,z);band.castShadow=false;}
- if(i%3===0){const lamp=new THREE.PointLight(i%2?0xff72d7:0x66cfff,1.35,48);lamp.position.set(x,cityTop+h*.72,z);scene.add(lamp);}
+const goldMat=new THREE.MeshStandardMaterial({color:0xc7a879,metalness:.12,roughness:.62});
+const neonPink=new THREE.MeshStandardMaterial({color:0xd99a9c,roughness:.58});
+const neonBlue=new THREE.MeshStandardMaterial({color:0x8db8c0,roughness:.42,metalness:.08});
+const cityGlass=new THREE.MeshStandardMaterial({color:0x8bb5bd,metalness:.18,roughness:.2,emissive:0x34515a,emissiveIntensity:.22});
+// Open-air central court with a low stone fountain, trees and seating.
+const plaza=addMesh(new THREE.CylinderGeometry(34,34,.45,64),new THREE.MeshStandardMaterial({color:0xd2c5b3,roughness:.86}),cityX,cityTop+.05,cityZ);
+const fountain=addMesh(new THREE.CylinderGeometry(8,10,1.2,48),new THREE.MeshStandardMaterial({color:0xc7b49a,roughness:.55}),cityX,cityTop+.75,cityZ);
+const fountainWater=addMesh(new THREE.CylinderGeometry(7.6,7.6,.22,48),new THREE.MeshPhysicalMaterial({color:0x80c9d2,transparent:true,opacity:.82,roughness:.16,clearcoat:1}),cityX,cityTop+1.48,cityZ);
+const fountainGlow=new THREE.PointLight(0xffd9ad,1.0,58);fountainGlow.position.set(cityX,cityTop+8,cityZ);scene.add(fountainGlow);
+block(cityX,cityZ,10);
+// Low-rise Mediterranean-inspired outlet facades instead of neon skyscrapers.
+const facadeMat=new THREE.MeshStandardMaterial({color:0xe5d7c5,roughness:.82});
+const trimMat=new THREE.MeshStandardMaterial({color:0xf1e8da,roughness:.72});
+const roofMat=new THREE.MeshStandardMaterial({color:0x88786c,roughness:.9});
+for(let side=0;side<2;side++){
+ const sx=cityX+(side?73:-73),sz=cityZ-7;
+ addMesh(new THREE.BoxGeometry(38,18,58),facadeMat,sx,cityTop+9,sz);
+ addMesh(new THREE.BoxGeometry(41,1.4,61),roofMat,sx,cityTop+18.3,sz);
+ addMesh(new THREE.BoxGeometry(40,1.1,60),trimMat,sx,cityTop+2.1,sz);
+ for(let floor=0;floor<2;floor++)for(let bay=0;bay<5;bay++){
+  const bx=sx-15+bay*7.5,by=cityTop+5+floor*7,bz=sz+29.25;
+  addMesh(new THREE.BoxGeometry(5.2,4.1,.28),cityGlass,bx,by,bz);
+  addMesh(new THREE.BoxGeometry(5.7,.42,.9),floor?neonBlue:neonPink,bx,by+2.25,bz+.45);
+  const glow=new THREE.PointLight(0xffd7ad,.32,13);glow.position.set(bx,by,bz+2.2);scene.add(glow);
+ }
+ block(sx,sz,21);
+ // Recessed entrance canopy and arched-looking portico details.
+ addMesh(new THREE.BoxGeometry(13,1,5),trimMat,sx,cityTop+13,sz+32);
+ for(let col=-1;col<=1;col++)addMesh(new THREE.CylinderGeometry(.38,.48,8,12),trimMat,sx+col*5,cityTop+4,sz+31);
 }
-// Hotel frontage, glowing street strips, pools and palm-like ornamental trees.
-const hotel=addMesh(new THREE.BoxGeometry(34,28,17),new THREE.MeshStandardMaterial({color:0x7b4d72,metalness:.48,roughness:.28,emissive:0x42163e,emissiveIntensity:.45}),cityX+5,cityTop+14,cityZ-66);
-block(cityX+5,cityZ-66,20);
-for(let i=0;i<8;i++){const x=cityX-70+i*20;const strip=addMesh(new THREE.BoxGeometry(1.2,.18,105),i%2?neonPink:neonBlue,x,cityTop+.18,cityZ+3);strip.castShadow=false;}
-for(let i=0;i<4;i++){const pool=addMesh(new THREE.BoxGeometry(20,.3,8),new THREE.MeshPhysicalMaterial({color:0x36bde9,emissive:0x126b9d,emissiveIntensity:.7,transparent:true,opacity:.86,roughness:.12}),cityX-65+i*42,cityTop+.3,cityZ+82);}
-const cityHalo=new THREE.PointLight(0xff9be7,2.2,190);cityHalo.position.set(cityX,cityTop+65,cityZ);scene.add(cityHalo);
+// A low, glass-fronted central pavilion and garden seating.
+const pavilion=addMesh(new THREE.BoxGeometry(48,10,22),facadeMat,cityX,cityTop+5,cityZ-68);
+addMesh(new THREE.BoxGeometry(50,1.2,24),roofMat,cityX,cityTop+10.5,cityZ-68);
+block(cityX,cityZ-68,25);
+for(let i=0;i<6;i++){const x=cityX-30+i*12;addMesh(new THREE.BoxGeometry(7,5,.3),cityGlass,x,cityTop+4,cityZ-56.8);}
+const cityHalo=new THREE.PointLight(0xffd8ad,1.2,150);cityHalo.position.set(cityX,cityTop+32,cityZ);scene.add(cityHalo);
 
 // Open-air outlet shopping district inspired by Taiwan's Linkou outlet atmosphere.
-const mallBase=addMesh(new THREE.BoxGeometry(78,.35,34),new THREE.MeshStandardMaterial({color:0x9b8b82,roughness:.72}),cityX-8,cityTop-.3,cityZ+42);
-const mallWall=new THREE.MeshStandardMaterial({color:0xead8c5,roughness:.62});
+const mallBase=addMesh(new THREE.BoxGeometry(78,.35,34),new THREE.MeshStandardMaterial({color:0xc9bba7,roughness:.86}),cityX-8,cityTop-.3,cityZ+42);
+const mallWall=new THREE.MeshStandardMaterial({color:0xeee3d3,roughness:.78});
 const mallGlass=new THREE.MeshStandardMaterial({color:0x5e9cae,metalness:.35,roughness:.18,emissive:0x23556a,emissiveIntensity:.65});
-const mallRoof=new THREE.MeshStandardMaterial({color:0x51445b,metalness:.3,roughness:.45});
+const mallRoof=new THREE.MeshStandardMaterial({color:0x82766a,metalness:.05,roughness:.82});
 // Two warm-lit shopping wings around an open pedestrian lane.
 for(let wing=0;wing<2;wing++){
  const wx=cityX-8+(wing?25:-25),wz=cityZ+43;
@@ -593,11 +604,11 @@ document.querySelector('#jump').addEventListener('pointerdown',()=>{if(onGround&
 document.querySelector('#home').addEventListener('click',()=>{player.position.set(0,heightAt(0,0),0);yaw=0;});
 let cityUnlocked=false;try{cityUnlocked=localStorage.getItem('dreamIslandsCityUnlocked')==='1';}catch(e){}
 const cityBtn=document.querySelector('#cityBtn');
-function refreshCityButton(){cityBtn.textContent=cityUnlocked?'🏙️ 霓虹城已解鎖':'🏙️ 解鎖霓虹城（20元）';cityBtn.disabled=cityUnlocked;}
+function refreshCityButton(){cityBtn.textContent=cityUnlocked?'🏙️ 霓虹城已解鎖':'🛍️ 解鎖林口三井 Outlet（20元）';cityBtn.disabled=cityUnlocked;}
 refreshCityButton();
 cityBtn.addEventListener('click',()=>{if(cityUnlocked)return;if(coins<20){cityBtn.textContent='還差 '+(20-coins)+' 元才能解鎖';setTimeout(refreshCityButton,1700);return;}coins-=20;cityUnlocked=true;try{localStorage.setItem('dreamIslandsCityUnlocked','1');localStorage.setItem('dreamIslandsCoins',String(coins));}catch(e){}updateWallet();refreshCityButton();});
 const destinations=[{x:0,z:0,name:'夢境草原・月光之境'},{x:-245,z:-235,name:'月霧花園'},{x:275,z:225,name:'水晶洞窟'},{x:-255,z:235,name:'古代星門遺跡'},{x:275,z:-235,name:'雲海港灣'},{x:cliffX,z:cliffZ,name:'月亮瀑布・星光之門'},{x:-315,z:8,name:'琉璃燈籠小鎮'},{x:8,z:315,name:'櫻花月泉島'},{x:350,z:260,name:'星帆海岸村'},{x:-320,z:-315,name:'蘑菇祕境森林'},{x:80,z:-320,name:'風車雲丘'}];let destinationIndex=0;
-document.querySelector('#travel').addEventListener('click',()=>{const available=cityUnlocked?[...destinations,{x:cityX,z:cityZ,name:'紙醉金迷之城'}]:destinations;destinationIndex=(destinationIndex+1)%available.length;const d=available[destinationIndex];player.position.set(d.x,groundAt(d.x,d.z),d.z);vy=0;yaw=0;zone.textContent=d.name;});
+document.querySelector('#travel').addEventListener('click',()=>{const available=cityUnlocked?[...destinations,{x:cityX,z:cityZ,name:'林口三井 Outlet 購物城'}]:destinations;destinationIndex=(destinationIndex+1)%available.length;const d=available[destinationIndex];player.position.set(d.x,groundAt(d.x,d.z),d.z);vy=0;yaw=0;zone.textContent=d.name;});
 let dragging=false,lastX=0,lastY=0;
 renderer.domElement.addEventListener('pointerdown',e=>{if(e.clientX>145&&e.clientY<innerHeight-145){dragging=true;lastX=e.clientX;lastY=e.clientY;renderer.domElement.setPointerCapture(e.pointerId);}});
 renderer.domElement.addEventListener('pointermove',e=>{if(dragging){yaw-=(e.clientX-lastX)*.005;pitch=THREE.MathUtils.clamp(pitch+(e.clientY-lastY)*.003,-.15,.8);lastX=e.clientX;lastY=e.clientY;}});
@@ -634,7 +645,7 @@ function animate(){
  else if(Math.hypot(x-275,z-225)<85)zone.textContent='水晶洞窟';
  else if(Math.hypot(x+255,z-235)<85)zone.textContent='古代星門遺跡';
  else if(Math.hypot(x-275,z+235)<85)zone.textContent='雲海港灣';
- else if(Math.hypot(x-cityX,z-cityZ)<112)zone.textContent='林口風格・星光 Outlet 購物城';
+ else if(Math.hypot(x-cityX,z-cityZ)<112)zone.textContent='林口三井風格・星光 Outlet 購物城';
  else zone.textContent='夢境草原・月光之境';
  // Fallen trees regrow after a short rest, restoring their collision too.
  for(let i=treeRespawns.length-1;i>=0;i--){const t=treeRespawns[i];t.timer-=dt;if(t.timer<=0){t.tree.rotation.set(0,0,0);t.tree.visible=true;blockers.push({x:t.x,z:t.z,r:t.r,kind:'tree',object:t.tree,broken:false});treeRespawns.splice(i,1);}}
