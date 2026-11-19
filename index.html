@@ -127,15 +127,19 @@ const plaza=addMesh(new THREE.CylinderGeometry(28,28,.45,48),new THREE.MeshStand
 const fountain=addMesh(new THREE.CylinderGeometry(9,12,2,32),goldMat,cityX,cityTop+1.2,cityZ);
 const fountainWater=addMesh(new THREE.CylinderGeometry(8.5,8.5,.35,32),new THREE.MeshPhysicalMaterial({color:0x72dcff,emissive:0x168dce,emissiveIntensity:.8,transparent:true,opacity:.88,roughness:.12,metalness:.25}),cityX,cityTop+2.35,cityZ);
 const fountainGlow=new THREE.PointLight(0x68cfff,2.8,75);fountainGlow.position.set(cityX,cityTop+9,cityZ);scene.add(fountainGlow);
+// Solid collision zones for city structures. The player and car must go around them.
+block(cityX,cityZ,12); // fountain
 // Grand hotel and varied skyscrapers around the plaza.
 for(let i=0;i<22;i++){const a=i/22*Math.PI*2,r=rand(43,88),x=cityX+Math.cos(a)*r,z=cityZ+Math.sin(a)*r;const h=rand(22,78),w=rand(8,15),d=rand(8,15);
  const tower=addMesh(new THREE.BoxGeometry(w,h,d),i%4===0?goldMat:cityGlass,x,cityTop+h/2,z);
+ block(x,z,Math.max(w,d)*.68);
  const roof=addMesh(new THREE.CylinderGeometry(w*.22,w*.55,rand(4,10),8),i%3===0?neonPink:goldMat,x,cityTop+h+2,z);
  for(let k=1;k<Math.floor(h/7);k++){const band=addMesh(new THREE.BoxGeometry(w+.25,.38,d+.25),i%2?neonBlue:neonPink,x,cityTop+k*7,z);band.castShadow=false;}
  if(i%3===0){const lamp=new THREE.PointLight(i%2?0xff72d7:0x66cfff,1.35,48);lamp.position.set(x,cityTop+h*.72,z);scene.add(lamp);}
 }
 // Hotel frontage, glowing street strips, pools and palm-like ornamental trees.
 const hotel=addMesh(new THREE.BoxGeometry(34,28,17),new THREE.MeshStandardMaterial({color:0x7b4d72,metalness:.48,roughness:.28,emissive:0x42163e,emissiveIntensity:.45}),cityX+5,cityTop+14,cityZ-66);
+block(cityX+5,cityZ-66,20);
 for(let i=0;i<8;i++){const x=cityX-70+i*20;const strip=addMesh(new THREE.BoxGeometry(1.2,.18,105),i%2?neonPink:neonBlue,x,cityTop+.18,cityZ+3);strip.castShadow=false;}
 for(let i=0;i<4;i++){const pool=addMesh(new THREE.BoxGeometry(20,.3,8),new THREE.MeshPhysicalMaterial({color:0x36bde9,emissive:0x126b9d,emissiveIntensity:.7,transparent:true,opacity:.86,roughness:.12}),cityX-65+i*42,cityTop+.3,cityZ+82);}
 const cityHalo=new THREE.PointLight(0xff9be7,2.2,190);cityHalo.position.set(cityX,cityTop+65,cityZ);scene.add(cityHalo);
@@ -434,9 +438,9 @@ const woodBlockMat=new THREE.MeshStandardMaterial({color:0x9b7048,roughness:.88}
 function placeWoodBlock(x,z){
  const gx=Math.round(x/3)*3,gz=Math.round(z/3)*3,gy=heightAt(gx,gz)+1.5;
  let level=0;for(const b of placedBlocks){if(Math.abs(b.position.x-gx)<.1&&Math.abs(b.position.z-gz)<.1)level=Math.max(level,Math.round((b.position.y-heightAt(gx,gz)-1.5)/3)+1);}
- const blockMesh=new THREE.Mesh(new THREE.BoxGeometry(3,3,3),woodBlockMat);blockMesh.position.set(gx,gy+level*3,gz);blockMesh.castShadow=true;blockMesh.receiveShadow=true;scene.add(blockMesh);placedBlocks.push(blockMesh);woodBlocks--;saveBuild();updateWallet();
+ const blockMesh=new THREE.Mesh(new THREE.BoxGeometry(3,3,3),woodBlockMat);blockMesh.position.set(gx,gy+level*3,gz);blockMesh.castShadow=true;blockMesh.receiveShadow=true;scene.add(blockMesh);placedBlocks.push(blockMesh);block(gx,gz,2.35);woodBlocks--;saveBuild();updateWallet();
 }
-function loadBuild(){try{const data=JSON.parse(localStorage.getItem('dreamIslandsBuildV1')||'[]');for(const q of data){const m=new THREE.Mesh(new THREE.BoxGeometry(3,3,3),woodBlockMat);m.position.set(q.x,q.y,q.z);m.castShadow=true;m.receiveShadow=true;scene.add(m);placedBlocks.push(m);}}catch(e){}}
+function loadBuild(){try{const data=JSON.parse(localStorage.getItem('dreamIslandsBuildV1')||'[]');for(const q of data){const m=new THREE.Mesh(new THREE.BoxGeometry(3,3,3),woodBlockMat);m.position.set(q.x,q.y,q.z);m.castShadow=true;m.receiveShadow=true;scene.add(m);placedBlocks.push(m);block(q.x,q.z,2.35);}}catch(e){}}
 loadBuild();
 mineBtn.addEventListener('click',()=>{let nearest=null,dist=13;for(const n of mineNodes){const px=typeof driving!=='undefined'&&driving?car.position.x:player.position.x,pz=typeof driving!=='undefined'&&driving?car.position.z:player.position.z;const d=Math.hypot(px-n.x,pz-n.z);if(n.available&&d<dist){nearest=n;dist=d;}}if(!nearest){mineBtn.textContent='靠近水晶礦再挖';setTimeout(()=>mineBtn.textContent='⛏️ 挖水晶',1100);return;}nearest.available=false;nearest.group.visible=false;nearest.respawn=90;crystals++;updateWallet();});
 sellBtn.addEventListener('click',()=>{coins+=crystals;crystals=0;updateWallet();});
@@ -487,14 +491,14 @@ function animate(){
   if(dir.lengthSq()>.001){dir.normalize();const nx=player.position.x+dir.x*dt*15,nz=player.position.z+dir.z*dt*15;let blocked=false;for(const b of blockers){const dx=nx-b.x,dz=nz-b.z,dist=Math.hypot(dx,dz),min=b.r+1.8;if(dist<min){if(b.kind==='tree'){breakTree(b,dx,dz);continue;}blocked=true;const push=(min-dist)/(dist||1);player.position.x+=dx*push;player.position.z+=dz*push;}}if(!blocked){player.position.x=nx;player.position.z=nz;}player.rotation.y=Math.atan2(dir.x,dir.z);walk+=dt*10;legL.rotation.x=Math.sin(walk)*.5;legR.rotation.x=-Math.sin(walk)*.5;}
   const ground=groundAt(player.position.x,player.position.z);vy-=27*dt;player.position.y+=vy*dt;
   if(player.position.y<ground){player.position.y=ground;vy=0;onGround=true;}
-  player.position.x=THREE.MathUtils.clamp(player.position.x,-365,365);player.position.z=THREE.MathUtils.clamp(player.position.z,-365,365);
+  player.position.x=THREE.MathUtils.clamp(player.position.x,-365,625);player.position.z=THREE.MathUtils.clamp(player.position.z,-365,365);
   activeX=player.position.x;activeZ=player.position.z;activeY=player.position.y;
  }else{
   carSpeed+=(throttle*24-brake*38)*dt;carSpeed*=Math.pow(.985,dt*60);carSpeed=THREE.MathUtils.clamp(carSpeed,-10,30);
   car.rotation.y-=moveX*dt*(.75+Math.min(Math.abs(carSpeed)/18,.8))*(carSpeed<0?-1:1);
   const nx=car.position.x-Math.sin(car.rotation.y)*carSpeed*dt,nz=car.position.z-Math.cos(car.rotation.y)*carSpeed*dt;
   let blocked=false;for(const b of blockers){const dx=nx-b.x,dz=nz-b.z,dist=Math.hypot(dx,dz),min=b.r+3.2;if(dist<min){if(b.kind==='tree'){breakTree(b,dx,dz);carSpeed*=.72;continue;}blocked=true;carSpeed=0;}}
-  if(!blocked){car.position.x=THREE.MathUtils.clamp(nx,-365,365);car.position.z=THREE.MathUtils.clamp(nz,-365,365);}
+  if(!blocked){car.position.x=THREE.MathUtils.clamp(nx,-365,625);car.position.z=THREE.MathUtils.clamp(nz,-365,365);}
   car.position.y=groundAt(car.position.x,car.position.z);wheels.forEach(w=>w.rotation.x-=carSpeed*dt*1.5);
   activeX=car.position.x;activeZ=car.position.z;activeY=car.position.y;
  }
