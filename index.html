@@ -22,6 +22,14 @@
 #musicBtn{position:fixed;left:14px;top:76px;border:1px solid #ffffff99;border-radius:20px;padding:8px 12px;background:#27365fbb;color:#fff;font-weight:700;font-size:12px}
 #musicFile{display:none}
 #ambienceBtn{position:fixed;left:14px;top:118px;border:1px solid #ffffff99;border-radius:20px;padding:8px 12px;background:#345a70bb;color:#fff;font-weight:700;font-size:12px}
+
+#economy{position:fixed;right:12px;top:154px;z-index:4;display:flex;flex-direction:column;gap:6px;align-items:flex-end;max-width:190px;color:#fff;font-size:12px;text-shadow:0 1px 5px #10132f}
+#wallet{padding:7px 10px;border-radius:14px;background:#14264dcc;border:1px solid #b9eaff88;font-weight:800}
+#economy button{border:1px solid #ffffffaa;border-radius:18px;padding:8px 11px;background:#263b70dd;color:#fff;font-weight:750;font-size:12px;box-shadow:0 2px 8px #0003;touch-action:manipulation}
+#economy button:disabled{opacity:.45}
+#cityBtn{border-color:#ffe0a0!important;background:linear-gradient(110deg,#7041a8dd,#b57a32dd)!important}
+#buildHint{position:fixed;left:50%;top:155px;transform:translateX(-50%);padding:7px 12px;border-radius:14px;background:#17254ddd;color:white;font-size:12px;display:none;z-index:4;white-space:nowrap}
+@media(max-width:420px){#economy{top:151px;right:8px;gap:5px}#economy button{padding:7px 9px;font-size:11px}#wallet{padding:6px 8px}}
 </style>
 </head>
 <body>
@@ -29,6 +37,14 @@
 <div id="title">夢境群島</div><div id="hint">Dream Islands · 月瀑星夜</div>
 <button id="home">回到起點</button><button id="travel">前往新場景 ✦</button><button id="vehicle">🚗 上車</button>
 <div id="joystick"><div id="stick"></div></div><button id="jump">跳躍</button><button id="gas">前進</button><button id="brake">煞車</button>
+<div id="economy">
+ <div id="wallet">💎 水晶 0　🪙 金幣 0　🪵 木塊 0</div>
+ <button id="mineBtn">⛏️ 挖水晶</button>
+ <button id="sellBtn">💰 賣出水晶（1顆＝1元）</button>
+ <button id="buyBtn">🪵 買木塊（1元＝1塊）</button>
+ <button id="buildBtn">🏡 開始蓋房子</button>
+ <button id="cityBtn">🏙️ 解鎖霓虹城（100元）</button>
+</div><div id="buildHint">建造模式：點擊地面放置木塊，再按一次結束</div>
 <div id="zone">夢境草原・月光之境</div><button id="musicBtn">🎵 選擇音樂</button><button id="ambienceBtn">🌬️ 環境音：關</button><input id="musicFile" type="file" accept="audio/*">
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
@@ -49,7 +65,7 @@ const grassMat=mat(0x6e9e78),rockMats=[mat(0x68758d),mat(0x7d879b),mat(0x53647a)
 const leafMats=[mat(0x376d67),mat(0x477e72),mat(0x5b8b78),mat(0x718f7d)];
 const flowerMats=[mat(0xffe8ae),mat(0xf3b6d1),mat(0xbfc6ff),mat(0xffffff)];
 const rand=(a,b)=>a+Math.random()*(b-a);
-const blockers=[],fallingTrees=[],treeDebris=[];
+const blockers=[],fallingTrees=[],treeDebris=[],treeRespawns=[];
 function block(x,z,r){blockers.push({x,z,r});}
 function heightAt(x,z){
  const base=4+Math.sin(x*.021+Math.cos(z*.017))*1.8+Math.sin(z*.037-x*.013)*1.1+Math.cos((x+z)*.012)*2.3+Math.sin(x*.008)*2+Math.max(0,1-Math.abs(x-170)/150)*Math.max(0,1-Math.abs(z+115)/190)*28;
@@ -58,6 +74,8 @@ function heightAt(x,z){
  const harborLevel=base*.25+3.0;
  return THREE.MathUtils.lerp(base,harborLevel,blend);
 }
+const cityX=510,cityZ=0,cityTop=6;
+function groundAt(x,z){return Math.hypot(x-cityX,z-cityZ)<112?cityTop:heightAt(x,z);}
 function addMesh(geo,material,x,y,z,sx=1,sy=1,sz=1){const m=new THREE.Mesh(geo,material);m.position.set(x,y,z);m.scale.set(sx,sy,sz);m.castShadow=true;m.receiveShadow=true;scene.add(m);return m;}
 
 // Rich midnight sky: stars, Milky Way dust, moon and halo
@@ -93,6 +111,35 @@ for(let i=0;i<pos.count;i++){const x=pos.getX(i),z=pos.getZ(i),h=heightAt(x,z);p
 geo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));geo.computeVertexNormals();
 const terrain=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1}));terrain.receiveShadow=true;scene.add(terrain);
 
+// The unlocked second island: a lavish neon night city with gold towers, canals and fountains.
+const cityIsland=new THREE.Mesh(new THREE.CylinderGeometry(112,126,18,72),new THREE.MeshStandardMaterial({color:0x34334e,roughness:.9,metalness:.12}));cityIsland.position.set(cityX,-3,cityZ);cityIsland.receiveShadow=true;cityIsland.castShadow=true;scene.add(cityIsland);
+const cityTopMat=new THREE.MeshStandardMaterial({color:0x28263d,roughness:.72,metalness:.22});
+addMesh(new THREE.CylinderGeometry(108,108,1.2,72),cityTopMat,cityX,cityTop-.65,cityZ);
+// A short illuminated bridge connects the natural island to the city island.
+const bridgeMat=new THREE.MeshStandardMaterial({color:0x51415f,metalness:.45,roughness:.4});
+addMesh(new THREE.BoxGeometry(48,2.2,13),bridgeMat,cityX-137,cityTop-1,cityZ);
+const goldMat=new THREE.MeshStandardMaterial({color:0xd9ae62,metalness:.72,roughness:.24,emissive:0x6d3e16,emissiveIntensity:.24});
+const neonPink=new THREE.MeshStandardMaterial({color:0xff70d7,emissive:0xe52cb7,emissiveIntensity:1.25,metalness:.25,roughness:.3});
+const neonBlue=new THREE.MeshStandardMaterial({color:0x75dfff,emissive:0x2388ff,emissiveIntensity:1.1,metalness:.25,roughness:.3});
+const cityGlass=new THREE.MeshStandardMaterial({color:0x242d59,metalness:.65,roughness:.18,emissive:0x18265a,emissiveIntensity:.38});
+// Central open plaza with a luminous fountain.
+const plaza=addMesh(new THREE.CylinderGeometry(28,28,.45,48),new THREE.MeshStandardMaterial({color:0x77708d,metalness:.55,roughness:.25}),cityX,cityTop+.05,cityZ);
+const fountain=addMesh(new THREE.CylinderGeometry(9,12,2,32),goldMat,cityX,cityTop+1.2,cityZ);
+const fountainWater=addMesh(new THREE.CylinderGeometry(8.5,8.5,.35,32),new THREE.MeshPhysicalMaterial({color:0x72dcff,emissive:0x168dce,emissiveIntensity:.8,transparent:true,opacity:.88,roughness:.12,metalness:.25}),cityX,cityTop+2.35,cityZ);
+const fountainGlow=new THREE.PointLight(0x68cfff,2.8,75);fountainGlow.position.set(cityX,cityTop+9,cityZ);scene.add(fountainGlow);
+// Grand hotel and varied skyscrapers around the plaza.
+for(let i=0;i<22;i++){const a=i/22*Math.PI*2,r=rand(43,88),x=cityX+Math.cos(a)*r,z=cityZ+Math.sin(a)*r;const h=rand(22,78),w=rand(8,15),d=rand(8,15);
+ const tower=addMesh(new THREE.BoxGeometry(w,h,d),i%4===0?goldMat:cityGlass,x,cityTop+h/2,z);
+ const roof=addMesh(new THREE.CylinderGeometry(w*.22,w*.55,rand(4,10),8),i%3===0?neonPink:goldMat,x,cityTop+h+2,z);
+ for(let k=1;k<Math.floor(h/7);k++){const band=addMesh(new THREE.BoxGeometry(w+.25,.38,d+.25),i%2?neonBlue:neonPink,x,cityTop+k*7,z);band.castShadow=false;}
+ if(i%3===0){const lamp=new THREE.PointLight(i%2?0xff72d7:0x66cfff,1.35,48);lamp.position.set(x,cityTop+h*.72,z);scene.add(lamp);}
+}
+// Hotel frontage, glowing street strips, pools and palm-like ornamental trees.
+const hotel=addMesh(new THREE.BoxGeometry(34,28,17),new THREE.MeshStandardMaterial({color:0x7b4d72,metalness:.48,roughness:.28,emissive:0x42163e,emissiveIntensity:.45}),cityX+5,cityTop+14,cityZ-66);
+for(let i=0;i<8;i++){const x=cityX-70+i*20;const strip=addMesh(new THREE.BoxGeometry(1.2,.18,105),i%2?neonPink:neonBlue,x,cityTop+.18,cityZ+3);strip.castShadow=false;}
+for(let i=0;i<4;i++){const pool=addMesh(new THREE.BoxGeometry(20,.3,8),new THREE.MeshPhysicalMaterial({color:0x36bde9,emissive:0x126b9d,emissiveIntensity:.7,transparent:true,opacity:.86,roughness:.12}),cityX-65+i*42,cityTop+.3,cityZ+82);}
+const cityHalo=new THREE.PointLight(0xff9be7,2.2,190);cityHalo.position.set(cityX,cityTop+65,cityZ);scene.add(cityHalo);
+
 // Distant layered mountain silhouettes
 for(let i=0;i<50;i++){const a=i/50*Math.PI*2,r=510+rand(-25,55),x=Math.cos(a)*r,z=Math.sin(a)*r,h=rand(70,155);const m=addMesh(new THREE.ConeGeometry(rand(24,46),h,9),mat(i%2?0x596b87:0x71809d),x,h/2-5,z);m.rotation.y=rand(0,6);}
 
@@ -109,7 +156,7 @@ for(let i=0;i<420;i++){
 } 
 function breakTree(b,dx,dz){
  if(!b||b.broken)return;b.broken=true;const tree=b.object;blockers.splice(blockers.indexOf(b),1);
- const len=Math.hypot(dx,dz)||1;fallingTrees.push({tree,age:0,fromX:tree.rotation.x,fromZ:tree.rotation.z,toX:(dz/len)*1.12,toZ:-(dx/len)*1.12});
+ const len=Math.hypot(dx,dz)||1;fallingTrees.push({tree,age:0,fromX:tree.rotation.x,fromZ:tree.rotation.z,toX:(dz/len)*1.12,toZ:-(dx/len)*1.12});treeRespawns.push({tree,x:b.x,z:b.z,r:b.r,kind:'tree',timer:55});
  // A small burst of leaf and wood fragments around the trunk.
  for(let i=0;i<15;i++){const leaf=i%3!==0,mesh=new THREE.Mesh(leaf?new THREE.SphereGeometry(.28,6,5):new THREE.BoxGeometry(.28,.7,.22),leaf?leafMats[i%leafMats.length]:woodMat);mesh.position.set(b.x+rand(-1,1),heightAt(b.x,b.z)+rand(2,8),b.z+rand(-1,1));mesh.castShadow=true;scene.add(mesh);treeDebris.push({mesh,vx:rand(-5,5),vy:rand(2,8),vz:rand(-5,5),life:1.8});}
  if(ambienceContext&&ambienceOn){const t=ambienceContext.currentTime,o=ambienceContext.createOscillator(),g=ambienceContext.createGain();o.type='triangle';o.frequency.setValueAtTime(115,t);o.frequency.exponentialRampToValueAtTime(48,t+.22);g.gain.setValueAtTime(.18,t);g.gain.exponentialRampToValueAtTime(.001,t+.28);o.connect(g);g.connect(ambienceMaster);o.start(t);o.stop(t+.3);}
@@ -195,6 +242,17 @@ for(let i=0;i<13;i++){const x=-245+rand(-58,58),z=-235+rand(-58,58),y=heightAt(x
 // Crystal cave: layered rock arch and luminous crystal clusters
 for(let i=0;i<18;i++){const a=i/18*Math.PI*2,x=275+Math.cos(a)*29,z=225+Math.sin(a)*23,y=heightAt(x,z);const h=rand(10,21);const rock=addMesh(new THREE.ConeGeometry(rand(5,9),h,7),mat(0x465b79),x,y+h/2-1,z);rock.rotation.z=rand(-.15,.15);block(x,z,4.5);}
 for(let i=0;i<55;i++){const x=275+rand(-38,38),z=225+rand(-30,30),y=heightAt(x,z);const crystal=addMesh(new THREE.ConeGeometry(rand(.8,2.2),rand(4,10),6),new THREE.MeshStandardMaterial({color:i%2?0x83eaff:0xb5a5ff,emissive:i%2?0x237eae:0x6550aa,emissiveIntensity:1.2,roughness:.25}),x,y+2.5,z);crystal.rotation.z=rand(-.18,.18);}
+// Mineable crystal clusters: glowing deposits that can be collected near the player.
+const mineNodes=[];
+for(let i=0;i<16;i++){
+ const a=i/16*Math.PI*2,r=rand(13,27),x=275+Math.cos(a)*r,z=225+Math.sin(a)*r,y=heightAt(x,z);
+ const group=new THREE.Group();group.position.set(x,y,z);scene.add(group);
+ const glowMat=new THREE.MeshStandardMaterial({color:i%2?0x83eaff:0xc4a5ff,emissive:i%2?0x258fcb:0x7256b9,emissiveIntensity:1.8,roughness:.18,metalness:.12});
+ for(let k=0;k<3;k++){const shard=new THREE.Mesh(new THREE.OctahedronGeometry(rand(1.1,1.8),0),glowMat);shard.position.set((k-1)*1.15,rand(1.2,2.8),rand(-.8,.8));shard.rotation.set(rand(-.3,.3),rand(0,6),rand(-.2,.2));shard.castShadow=true;group.add(shard);}
+ const light=new THREE.PointLight(0x79dfff,.55,9);light.position.y=2;group.add(light);
+ mineNodes.push({group,x,z,available:true,respawn:0});
+}
+
 // Ancient star-gate ruins with broken columns and a stone path
 for(let i=0;i<9;i++){const a=i/9*Math.PI*2,x=-255+Math.cos(a)*27,z=235+Math.sin(a)*27,y=heightAt(x,z);const h=rand(7,13);const col=addMesh(new THREE.CylinderGeometry(1.6,2.1,h,8),mat(0x8d8290),x,y+h/2,z);col.rotation.z=rand(-.12,.12);block(x,z,3.2);}
 const ruinTop=addMesh(new THREE.BoxGeometry(42,3,5),mat(0xa99a9b),-255,heightAt(-255,208)+13,208);ruinTop.rotation.z=.08;
@@ -305,13 +363,15 @@ function setAmbienceScene(x,z){
  const garden=Math.hypot(x+245,z+235)<105;
  const cave=Math.hypot(x-275,z-225)<90;
  const harbor=Math.hypot(x-275,z+235)<110;
- const sceneKey=waterfall?'waterfall':garden?'garden':cave?'cave':harbor?'harbor':'meadow';
+ const city=Math.hypot(x-cityX,z-cityZ)<112;
+ const sceneKey=city?'city':waterfall?'waterfall':garden?'garden':cave?'cave':harbor?'harbor':'meadow';
  if(sceneKey===lastAmbienceScene)return;lastAmbienceScene=sceneKey;
  const t=ambienceContext.currentTime;
  const profile=waterfall?{wind:.20,water:.95,waterLow:.82,insects:.04,hum:.04,crystal:.02,chime:.04,bird:.01}
  :garden?{wind:.48,water:.08,waterLow:.04,insects:.78,hum:.04,crystal:.10,chime:.42,bird:.08}
  :cave?{wind:.04,water:.18,waterLow:.12,insects:.01,hum:.92,crystal:.82,chime:.38,bird:0}
  :harbor?{wind:.30,water:.92,waterLow:.68,insects:.18,hum:.06,crystal:.08,chime:.20,bird:.72}
+ :city?{wind:.12,water:.32,waterLow:.18,insects:.02,hum:.48,crystal:.22,chime:.75,bird:.04}
  :{wind:.60,water:.06,waterLow:.02,insects:.12,hum:.04,crystal:.04,chime:.12,bird:.42};
  for(const [key,value] of Object.entries(profile)){const layer=ambienceLayers[key];if(layer)layer.gain.gain.setTargetAtTime(layer.base*value,t,1.25);}
  if(ambienceLayers.hum)ambienceLayers.hum.osc.frequency.setTargetAtTime(cave?72:(garden?112:waterfall?94:harbor?118:86),t,1.6);
@@ -356,13 +416,40 @@ let driving=false,carSpeed=0,throttle=0,brake=0;
 const vehicleBtn=document.querySelector('#vehicle'),gasBtn=document.querySelector('#gas'),brakeBtn=document.querySelector('#brake');
 vehicleBtn.addEventListener('click',()=>{
  driving=!driving;carSpeed=0;car.visible=driving;player.visible=!driving;
- if(driving){car.position.set(player.position.x,heightAt(player.position.x,player.position.z),player.position.z);car.rotation.y=player.rotation.y;vehicleBtn.textContent='🚶 下車';}
- else {player.position.set(car.position.x+Math.sin(car.rotation.y)*4,heightAt(car.position.x,car.position.z),car.position.z+Math.cos(car.rotation.y)*4);vehicleBtn.textContent='🚗 上車';}
+ if(driving){car.position.set(player.position.x,groundAt(player.position.x,player.position.z),player.position.z);car.rotation.y=player.rotation.y;vehicleBtn.textContent='🚶 下車';}
+ else {player.position.set(car.position.x+Math.sin(car.rotation.y)*4,groundAt(car.position.x,car.position.z),car.position.z+Math.cos(car.rotation.y)*4);vehicleBtn.textContent='🚗 上車';}
  gasBtn.style.display=driving?'block':'none';brakeBtn.style.display=driving?'block':'none';document.querySelector('#jump').style.display=driving?'none':'block';
 });
 function holdButton(el,setter){el.addEventListener('pointerdown',e=>{e.preventDefault();setter(1);el.setPointerCapture(e.pointerId);});const stop=()=>setter(0);el.addEventListener('pointerup',stop);el.addEventListener('pointercancel',stop);el.addEventListener('lostpointercapture',stop);}
 holdButton(gasBtn,v=>throttle=v);holdButton(brakeBtn,v=>brake=v);
 
+
+// Crystal economy and Minecraft-like block building.
+let crystals=0,coins=0,woodBlocks=0,buildMode=false;try{coins=Number(localStorage.getItem('dreamIslandsCoins')||0)||0;}catch(e){}
+const wallet=document.querySelector('#wallet'),mineBtn=document.querySelector('#mineBtn'),sellBtn=document.querySelector('#sellBtn'),buyBtn=document.querySelector('#buyBtn'),buildBtn=document.querySelector('#buildBtn'),buildHint=document.querySelector('#buildHint');
+function updateWallet(){try{localStorage.setItem('dreamIslandsCoins',String(coins));}catch(e){}const px=driving?car.position.x:player.position.x,pz=driving?car.position.z:player.position.z;wallet.textContent=`💎 水晶 ${crystals}　🪙 金幣 ${coins}　🪵 木塊 ${woodBlocks}`;mineBtn.disabled=!mineNodes.some(n=>n.available&&Math.hypot(px-n.x,pz-n.z)<13);sellBtn.disabled=crystals<1;buyBtn.disabled=coins<1;}
+function saveBuild(){try{localStorage.setItem('dreamIslandsBuildV1',JSON.stringify(placedBlocks.map(b=>({x:b.position.x,y:b.position.y,z:b.position.z}))));}catch(e){}}
+const placedBlocks=[];
+const woodBlockMat=new THREE.MeshStandardMaterial({color:0x9b7048,roughness:.88});
+function placeWoodBlock(x,z){
+ const gx=Math.round(x/3)*3,gz=Math.round(z/3)*3,gy=heightAt(gx,gz)+1.5;
+ let level=0;for(const b of placedBlocks){if(Math.abs(b.position.x-gx)<.1&&Math.abs(b.position.z-gz)<.1)level=Math.max(level,Math.round((b.position.y-heightAt(gx,gz)-1.5)/3)+1);}
+ const blockMesh=new THREE.Mesh(new THREE.BoxGeometry(3,3,3),woodBlockMat);blockMesh.position.set(gx,gy+level*3,gz);blockMesh.castShadow=true;blockMesh.receiveShadow=true;scene.add(blockMesh);placedBlocks.push(blockMesh);woodBlocks--;saveBuild();updateWallet();
+}
+function loadBuild(){try{const data=JSON.parse(localStorage.getItem('dreamIslandsBuildV1')||'[]');for(const q of data){const m=new THREE.Mesh(new THREE.BoxGeometry(3,3,3),woodBlockMat);m.position.set(q.x,q.y,q.z);m.castShadow=true;m.receiveShadow=true;scene.add(m);placedBlocks.push(m);}}catch(e){}}
+loadBuild();
+mineBtn.addEventListener('click',()=>{let nearest=null,dist=13;for(const n of mineNodes){const px=typeof driving!=='undefined'&&driving?car.position.x:player.position.x,pz=typeof driving!=='undefined'&&driving?car.position.z:player.position.z;const d=Math.hypot(px-n.x,pz-n.z);if(n.available&&d<dist){nearest=n;dist=d;}}if(!nearest){mineBtn.textContent='靠近水晶礦再挖';setTimeout(()=>mineBtn.textContent='⛏️ 挖水晶',1100);return;}nearest.available=false;nearest.group.visible=false;nearest.respawn=90;crystals++;updateWallet();});
+sellBtn.addEventListener('click',()=>{coins+=crystals;crystals=0;updateWallet();});
+buyBtn.addEventListener('click',()=>{if(coins<1)return;coins--;woodBlocks++;updateWallet();});
+buildBtn.addEventListener('click',()=>{buildMode=!buildMode;buildBtn.textContent=buildMode?'✋ 結束建造':'🏡 開始蓋房子';buildHint.style.display=buildMode?'block':'none';});
+const buildRaycaster=new THREE.Raycaster(),buildPointer=new THREE.Vector2();
+renderer.domElement.addEventListener('pointerdown',e=>{
+ if(!buildMode||e.clientX<145||e.clientY>innerHeight-145)return;
+ if(woodBlocks<1){buildHint.textContent='木塊不足！先挖水晶、賣掉，再購買木塊';setTimeout(()=>{if(buildMode)buildHint.textContent='建造模式：點擊地面放置木塊，再按一次結束';},1700);return;}
+ buildPointer.x=(e.clientX/innerWidth)*2-1;buildPointer.y=-(e.clientY/innerHeight)*2+1;buildRaycaster.setFromCamera(buildPointer,camera);
+ const hits=buildRaycaster.intersectObject(terrain,false);if(hits.length){const pt=hits[0].point;if(Math.hypot(pt.x-player.position.x,pt.z-player.position.z)<32)placeWoodBlock(pt.x,pt.z);}
+});
+updateWallet();
 
 // A path of tiny lantern flowers
 for(let i=0;i<42;i++){const t=i/41,x=-15+t*240,z=25+Math.sin(t*6)*80,y=heightAt(x,z);const lightOrb=addMesh(new THREE.SphereGeometry(.38,8,8),new THREE.MeshStandardMaterial({color:0xffe6aa,emissive:0xffbd68,emissiveIntensity:1.7}),x,y+1.5,z);if(i%4===0){const l=new THREE.PointLight(0xffd38b,.55,14);l.position.copy(lightOrb.position);scene.add(l);}}
@@ -377,8 +464,13 @@ function endJoy(e){if(e.pointerId===joyId){joyId=null;moveX=moveZ=0;stick.style.
 joystick.addEventListener('pointerup',endJoy);joystick.addEventListener('pointercancel',endJoy);
 document.querySelector('#jump').addEventListener('pointerdown',()=>{if(onGround){vy=12;onGround=false;}});
 document.querySelector('#home').addEventListener('click',()=>{player.position.set(0,heightAt(0,0),0);yaw=0;});
+let cityUnlocked=false;try{cityUnlocked=localStorage.getItem('dreamIslandsCityUnlocked')==='1';}catch(e){}
+const cityBtn=document.querySelector('#cityBtn');
+function refreshCityButton(){cityBtn.textContent=cityUnlocked?'🏙️ 霓虹城已解鎖':'🏙️ 解鎖霓虹城（100元）';cityBtn.disabled=cityUnlocked;}
+refreshCityButton();
+cityBtn.addEventListener('click',()=>{if(cityUnlocked)return;if(coins<100){cityBtn.textContent='還差 '+(100-coins)+' 元才能解鎖';setTimeout(refreshCityButton,1700);return;}coins-=100;cityUnlocked=true;try{localStorage.setItem('dreamIslandsCityUnlocked','1');localStorage.setItem('dreamIslandsCoins',String(coins));}catch(e){}updateWallet();refreshCityButton();});
 const destinations=[{x:0,z:0,name:'夢境草原・月光之境'},{x:-245,z:-235,name:'月霧花園'},{x:275,z:225,name:'水晶洞窟'},{x:-255,z:235,name:'古代星門遺跡'},{x:275,z:-235,name:'雲海港灣'},{x:cliffX,z:cliffZ,name:'月亮瀑布・星光之門'}];let destinationIndex=0;
-document.querySelector('#travel').addEventListener('click',()=>{destinationIndex=(destinationIndex+1)%destinations.length;const d=destinations[destinationIndex];player.position.set(d.x,heightAt(d.x,d.z),d.z);vy=0;yaw=0;zone.textContent=d.name;});
+document.querySelector('#travel').addEventListener('click',()=>{const available=cityUnlocked?[...destinations,{x:cityX,z:cityZ,name:'紙醉金迷之城'}]:destinations;destinationIndex=(destinationIndex+1)%available.length;const d=available[destinationIndex];player.position.set(d.x,groundAt(d.x,d.z),d.z);vy=0;yaw=0;zone.textContent=d.name;});
 let dragging=false,lastX=0,lastY=0;
 renderer.domElement.addEventListener('pointerdown',e=>{if(e.clientX>145&&e.clientY<innerHeight-145){dragging=true;lastX=e.clientX;lastY=e.clientY;renderer.domElement.setPointerCapture(e.pointerId);}});
 renderer.domElement.addEventListener('pointermove',e=>{if(dragging){yaw-=(e.clientX-lastX)*.005;pitch=THREE.MathUtils.clamp(pitch+(e.clientY-lastY)*.003,-.15,.8);lastX=e.clientX;lastY=e.clientY;}});
@@ -393,7 +485,7 @@ function animate(){
  if(!driving){
   const dir=forward.clone().multiplyScalar(-moveZ).add(right.multiplyScalar(moveX));
   if(dir.lengthSq()>.001){dir.normalize();const nx=player.position.x+dir.x*dt*15,nz=player.position.z+dir.z*dt*15;let blocked=false;for(const b of blockers){const dx=nx-b.x,dz=nz-b.z,dist=Math.hypot(dx,dz),min=b.r+1.8;if(dist<min){if(b.kind==='tree'){breakTree(b,dx,dz);continue;}blocked=true;const push=(min-dist)/(dist||1);player.position.x+=dx*push;player.position.z+=dz*push;}}if(!blocked){player.position.x=nx;player.position.z=nz;}player.rotation.y=Math.atan2(dir.x,dir.z);walk+=dt*10;legL.rotation.x=Math.sin(walk)*.5;legR.rotation.x=-Math.sin(walk)*.5;}
-  const ground=heightAt(player.position.x,player.position.z);vy-=27*dt;player.position.y+=vy*dt;
+  const ground=groundAt(player.position.x,player.position.z);vy-=27*dt;player.position.y+=vy*dt;
   if(player.position.y<ground){player.position.y=ground;vy=0;onGround=true;}
   player.position.x=THREE.MathUtils.clamp(player.position.x,-365,365);player.position.z=THREE.MathUtils.clamp(player.position.z,-365,365);
   activeX=player.position.x;activeZ=player.position.z;activeY=player.position.y;
@@ -403,7 +495,7 @@ function animate(){
   const nx=car.position.x-Math.sin(car.rotation.y)*carSpeed*dt,nz=car.position.z-Math.cos(car.rotation.y)*carSpeed*dt;
   let blocked=false;for(const b of blockers){const dx=nx-b.x,dz=nz-b.z,dist=Math.hypot(dx,dz),min=b.r+3.2;if(dist<min){if(b.kind==='tree'){breakTree(b,dx,dz);carSpeed*=.72;continue;}blocked=true;carSpeed=0;}}
   if(!blocked){car.position.x=THREE.MathUtils.clamp(nx,-365,365);car.position.z=THREE.MathUtils.clamp(nz,-365,365);}
-  car.position.y=heightAt(car.position.x,car.position.z);wheels.forEach(w=>w.rotation.x-=carSpeed*dt*1.5);
+  car.position.y=groundAt(car.position.x,car.position.z);wheels.forEach(w=>w.rotation.x-=carSpeed*dt*1.5);
   activeX=car.position.x;activeZ=car.position.z;activeY=car.position.y;
  }
  const x=activeX,z=activeZ;
@@ -416,6 +508,11 @@ function animate(){
  else if(Math.hypot(x+255,z-235)<85)zone.textContent='古代星門遺跡';
  else if(Math.hypot(x-275,z+235)<85)zone.textContent='雲海港灣';
  else zone.textContent='夢境草原・月光之境';
+ // Fallen trees regrow after a short rest, restoring their collision too.
+ for(let i=treeRespawns.length-1;i>=0;i--){const t=treeRespawns[i];t.timer-=dt;if(t.timer<=0){t.tree.rotation.set(0,0,0);t.tree.visible=true;blockers.push({x:t.x,z:t.z,r:t.r,kind:'tree',object:t.tree,broken:false});treeRespawns.splice(i,1);}}
+ // Crystal nodes slowly regenerate after mining.
+ mineNodes.forEach(n=>{if(!n.available){n.respawn-=dt;if(n.respawn<=0){n.available=true;n.group.visible=true;}}else{n.group.children.forEach((c,i)=>{if(c.isMesh)c.rotation.y+=dt*(.35+i*.08);});}});
+ updateWallet();
  // Animate fallen trees and their little leaf/wood fragments.
  fallingTrees.forEach(f=>{f.age+=dt;const k=1-Math.pow(1-Math.min(f.age/1.05,1),3);f.tree.rotation.x=THREE.MathUtils.lerp(f.fromX,f.toX,k);f.tree.rotation.z=THREE.MathUtils.lerp(f.fromZ,f.toZ,k);});
  for(let i=treeDebris.length-1;i>=0;i--){const d=treeDebris[i];d.life-=dt;d.vy-=15*dt;d.mesh.position.x+=d.vx*dt;d.mesh.position.y+=d.vy*dt;d.mesh.position.z+=d.vz*dt;d.mesh.rotation.x+=dt*4;d.mesh.rotation.z+=dt*3;if(d.life<=0){scene.remove(d.mesh);d.mesh.geometry.dispose();treeDebris.splice(i,1);}}
