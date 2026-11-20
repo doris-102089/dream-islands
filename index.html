@@ -33,6 +33,8 @@
 #shopPanel{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(310px,88vw);max-height:75vh;overflow:auto;z-index:8;display:none;padding:14px;border:1px solid #ffe6ad;border-radius:18px;background:linear-gradient(150deg,#20264eee,#52345eee);color:white;box-shadow:0 10px 40px #0009}
 #shopPanel h3{margin:2px 0 8px;font-size:17px}#shopPanel p{font-size:12px;line-height:1.5;margin:6px 0 10px}#shopPanel button{display:block;width:100%;margin:7px 0;padding:9px;border:1px solid #ffffff70;border-radius:12px;background:#ffffff20;color:white;font-weight:750;text-align:left;touch-action:manipulation}#shopPanel button:disabled{opacity:.45}#shopClose{background:#8b567c!important;text-align:center!important}
 #npcBuy{position:fixed;left:50%;top:42%;transform:translate(-50%,-50%);display:none;z-index:7;border:2px solid #ffe6ad;border-radius:22px;padding:9px 15px;background:#7b4b9eee;color:#fff;font-weight:900;font-size:15px;box-shadow:0 4px 18px #0008;touch-action:manipulation}
+#furniturePanel{position:fixed;left:50%;bottom:112px;transform:translateX(-50%);display:none;z-index:8;width:min(330px,90vw);padding:10px;border:1px solid #ffe6ad;border-radius:15px;background:#20264eee;color:#fff;grid-template-columns:repeat(3,1fr);gap:6px}
+#furniturePanel button{border:1px solid #ffffff70;border-radius:10px;padding:8px 4px;background:#ffffff20;color:white;font-size:11px;font-weight:750}
 #buildHint{position:fixed;left:50%;top:155px;transform:translateX(-50%);padding:7px 12px;border-radius:14px;background:#17254ddd;color:white;font-size:12px;display:none;z-index:4;white-space:nowrap}
 @media(max-width:420px){#economy{top:151px;right:8px;gap:5px}#economy button{padding:7px 9px;font-size:11px}#wallet{padding:6px 8px}}
 </style>
@@ -60,7 +62,8 @@
 <div id="shoesStore" data-store-section style="display:none"><h4>👟 鞋履專門店</h4><p>挑選適合夜間散步與探索的鞋子。</p><button data-special="sneakers">👟 星雲運動鞋（6 金幣）</button><button data-special="boots">🥾 月光短靴（8 金幣）</button><button data-special="sandals">🩴 夏夜涼鞋（5 金幣）</button></div>
 <div id="perfumeStore" data-store-section style="display:none"><h4>🪻 香氛專櫃</h4><p>收集不同氣味的香氛小瓶。</p><button data-special="lavender">🪻 月霧薰衣草（5 金幣）</button><button data-special="ocean">🌊 海風白茶（5 金幣）</button><button data-special="peach">🍑 蜜桃晚香（6 金幣）</button></div>
 <button id="shopClose">關閉商店</button></div>
-<div id="buildHint">建造模式：點擊地面放置木塊，再按一次結束</div>
+<div id="buildHint">建造模式：選家具後點擊地面放置，再按一次結束</div>
+<div id="furniturePanel"><button data-furniture="chair">🪑 木椅</button><button data-furniture="table">🪵 小桌</button><button data-furniture="sofa">🛋️ 沙發</button><button data-furniture="bed">🛏️ 床</button><button data-furniture="lamp">🏮 庭院燈</button><button data-furniture="plant">🪴 盆栽</button><button data-furniture="woodblock">🧱 木建材</button></div>
 <div id="zone">夢境草原・月光之境</div><button id="musicBtn">🎵 選擇音樂</button><button id="ambienceBtn">🌬️ 環境音：關</button><input id="musicFile" type="file" accept="audio/*">
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
@@ -701,6 +704,25 @@ function updateWallet(){try{localStorage.setItem('dreamIslandsCoins',String(coin
 function saveBuild(){try{localStorage.setItem('dreamIslandsBuildV1',JSON.stringify(placedBlocks.map(b=>({x:b.position.x,y:b.position.y,z:b.position.z}))));}catch(e){}}
 const placedBlocks=[];
 const woodBlockMat=new THREE.MeshStandardMaterial({color:0x9b7048,roughness:.88});
+const placedFurniture=[];let selectedFurniture='chair';
+const furniturePanel=document.querySelector('#furniturePanel');
+const furnitureNames={chair:'木椅',table:'小桌',sofa:'沙發',bed:'床',lamp:'庭院燈',plant:'盆栽',woodblock:'木建材'};
+function makeFurniture(type,x,y,z){
+ const g=new THREE.Group();g.position.set(x,y,z);const wood=new THREE.MeshStandardMaterial({color:0x916747,roughness:.86}),cushion=new THREE.MeshStandardMaterial({color:0x9d83bd,roughness:.9}),metal=new THREE.MeshStandardMaterial({color:0x454b61,metalness:.45,roughness:.5});
+ const add=(geo,ma,px,py,pz)=>{const m=new THREE.Mesh(geo,ma);m.position.set(px,py,pz);m.castShadow=true;m.receiveShadow=true;g.add(m);return m;};
+ if(type==='chair'){add(new THREE.BoxGeometry(1.8,.22,1.7),wood,0,1.25,0);add(new THREE.BoxGeometry(1.8,1.7,.22),wood,0,2.05,-.72);for(const a of [-.68,.68])for(const b of [-.62,.62])add(new THREE.BoxGeometry(.2,1.25,.2),wood,a,.62,b);}
+ if(type==='table'){add(new THREE.BoxGeometry(3,.25,2.1),wood,0,1.8,0);for(const a of [-1.2,1.2])for(const b of [-.75,.75])add(new THREE.BoxGeometry(.2,1.8,.2),wood,a,.9,b);}
+ if(type==='sofa'){add(new THREE.BoxGeometry(3.8,.65,1.7),cushion,0,1.1,0);add(new THREE.BoxGeometry(3.8,1.4,.3),cushion,0,1.8,-.72);for(const a of [-1.8,1.8])add(new THREE.BoxGeometry(.3,1.15,1.7),wood,a,1.55,0);}
+ if(type==='bed'){add(new THREE.BoxGeometry(3.2,.45,4.4),wood,0,.55,0);add(new THREE.BoxGeometry(3, .35,4.1),cushion,0,.95,0);add(new THREE.BoxGeometry(3,.55,.55),new THREE.MeshStandardMaterial({color:0xe7d9ef}),0,1.35,-1.65);}
+ if(type==='lamp'){add(new THREE.CylinderGeometry(.12,.2,2.5,8),metal,0,1.25,0);add(new THREE.SphereGeometry(.62,12,10),new THREE.MeshStandardMaterial({color:0xffe6a4,emissive:0xffc45c,emissiveIntensity:1.5}),0,2.65,0);}
+ if(type==='plant'){add(new THREE.CylinderGeometry(.48,.58,.8,12),new THREE.MeshStandardMaterial({color:0xb87858}),0,.4,0);for(let i=0;i<5;i++){const leaf=add(new THREE.SphereGeometry(.45,8,7),new THREE.MeshStandardMaterial({color:i%2?0x4f956c:0x78a878}),Math.cos(i*1.25)*.4,1.25+Math.sin(i*1.25)*.35,Math.sin(i*1.25)*.4);leaf.scale.set(.7,1.5,.6);}}
+ scene.add(g);placedFurniture.push({type,x,y,z,group:g});return g;
+}
+function saveFurniture(){try{localStorage.setItem('dreamIslandsFurnitureV1',JSON.stringify(placedFurniture.map(o=>({type:o.type,x:o.x,y:o.y,z:o.z}))));}catch(e){}}
+function loadFurniture(){try{const a=JSON.parse(localStorage.getItem('dreamIslandsFurnitureV1')||'[]');if(Array.isArray(a))a.forEach(o=>{if(furnitureNames[o.type])makeFurniture(o.type,o.x,o.y,o.z);});}catch(e){}}
+function placeFurniture(type,x,z){const gx=Math.round(x/2)*2,gz=Math.round(z/2)*2;makeFurniture(type,gx,heightAt(gx,gz),gz);saveFurniture();}
+loadFurniture();
+document.querySelectorAll('[data-furniture]').forEach(b=>b.addEventListener('click',()=>{selectedFurniture=b.dataset.furniture;document.querySelectorAll('[data-furniture]').forEach(x=>x.style.outline=x===b?'2px solid #ffe6ad':'none');buildHint.textContent='已選擇'+furnitureNames[selectedFurniture]+'，點擊地面放置';}));
 function placeWoodBlock(x,z){
  const gx=Math.round(x/3)*3,gz=Math.round(z/3)*3,gy=heightAt(gx,gz)+1.5;
  let level=0;for(const b of placedBlocks){if(Math.abs(b.position.x-gx)<.1&&Math.abs(b.position.z-gz)<.1)level=Math.max(level,Math.round((b.position.y-heightAt(gx,gz)-1.5)/3)+1);}
@@ -711,13 +733,13 @@ loadBuild();
 mineBtn.addEventListener('click',()=>{let nearest=null,dist=24;for(const n of mineNodes){const px=typeof driving!=='undefined'&&driving?car.position.x:player.position.x,pz=typeof driving!=='undefined'&&driving?car.position.z:player.position.z;const d=Math.hypot(px-n.x,pz-n.z);if(n.available&&d<dist){nearest=n;dist=d;}}if(!nearest){mineBtn.textContent='靠近水晶礦再挖';setTimeout(()=>mineBtn.textContent='⛏️ 挖水晶',1100);return;}nearest.available=false;nearest.group.visible=false;nearest.respawn=90;crystals++;updateWallet();});
 sellBtn.addEventListener('click',()=>{coins+=crystals;crystals=0;updateWallet();});
 buyBtn.addEventListener('click',()=>{if(coins<1)return;coins--;woodBlocks++;updateWallet();});
-buildBtn.addEventListener('click',()=>{buildMode=!buildMode;buildBtn.textContent=buildMode?'✋ 結束建造':'🏡 開始蓋房子';buildHint.style.display=buildMode?'block':'none';});
+buildBtn.addEventListener('click',()=>{buildMode=!buildMode;buildBtn.textContent=buildMode?'✋ 結束建造':'🏡 開始蓋房子';buildHint.style.display=buildMode?'block':'none';furniturePanel.style.display=buildMode?'grid':'none';});
 const buildRaycaster=new THREE.Raycaster(),buildPointer=new THREE.Vector2();
 renderer.domElement.addEventListener('pointerdown',e=>{
  if(!buildMode||e.clientX<145||e.clientY>innerHeight-145)return;
  if(woodBlocks<1){buildHint.textContent='木塊不足！先挖水晶、賣掉，再購買木塊';setTimeout(()=>{if(buildMode)buildHint.textContent='建造模式：點擊地面放置木塊，再按一次結束';},1700);return;}
  buildPointer.x=(e.clientX/innerWidth)*2-1;buildPointer.y=-(e.clientY/innerHeight)*2+1;buildRaycaster.setFromCamera(buildPointer,camera);
- const hits=buildRaycaster.intersectObject(terrain,false);if(hits.length){const pt=hits[0].point;if(Math.hypot(pt.x-player.position.x,pt.z-player.position.z)<32)placeWoodBlock(pt.x,pt.z);}
+ const hits=buildRaycaster.intersectObject(terrain,false);if(hits.length){const pt=hits[0].point;if(Math.hypot(pt.x-player.position.x,pt.z-player.position.z)<32){if(selectedFurniture==='woodblock')placeWoodBlock(pt.x,pt.z);else if(selectedFurniture&&furniturePanel.style.display==='grid')placeFurniture(selectedFurniture,pt.x,pt.z);else placeWoodBlock(pt.x,pt.z);}}
 });
 updateWallet();
 
@@ -738,7 +760,40 @@ const makeupWrap=document.querySelector('#makeupColors'),makeupMessage=document.
 makeupPalette.forEach(([name,hex,cost])=>{const b=document.createElement('button');b.style.cssText=`padding:7px 3px;border-radius:10px;border:2px solid #ffffff88;background:${hex};color:#241a2a;font-size:10px;font-weight:900;min-height:47px;text-shadow:0 1px 1px #fff8`;b.textContent=name+'\n'+cost+'元';b.addEventListener('click',()=>{if(!ownedMakeup.includes(hex)){if(coins<cost){makeupMessage.textContent='金幣不足，這支彩妝筆需要 '+cost+' 元';return;}coins-=cost;ownedMakeup.push(hex);try{localStorage.setItem('dreamIslandsMakeup',JSON.stringify(ownedMakeup));}catch(e){}}applyMakeup(hex);updateWallet();makeupMessage.textContent='已使用 '+name+' 彩妝筆！';});makeupWrap.appendChild(b);});
 const shopPanel=document.querySelector('#shopPanel'),npcBuy=document.querySelector('#npcBuy');function openShop(type,title){activeShop=type;document.querySelector('#shopTitle').textContent=title;document.querySelectorAll('[data-store-section]').forEach(el=>el.style.display='none');const section=document.querySelector('#'+({makeup:'makeupStore',fashion:'fashionStore',food:'foodStore',accessory:'accessoryStore',shoes:'shoesStore',perfume:'perfumeStore'}[type]));if(section)section.style.display='block';document.querySelector('#shopIntro').textContent='這位店員只販售這個專櫃的商品。';shopPanel.style.display='block';}npcBuy.addEventListener('click',()=>openShop(activeShop,activeShopTitle));document.querySelector('#shopClose').addEventListener('click',()=>{shopPanel.style.display='none';});
 let activeShopTitle='🎨 星光彩妝專櫃';
-document.querySelectorAll('[data-accessory]').forEach(btn=>btn.addEventListener('click',()=>{const id=btn.dataset.accessory,prices={star:4,moon:5,butterfly:6},names={star:'星星髮飾',moon:'月亮耳飾',butterfly:'蝴蝶胸針'};let owned=[];try{owned=JSON.parse(localStorage.getItem('dreamIslandsAccessories')||'[]');}catch(e){}if(owned.includes(id)){btn.textContent='✓ 已收藏：'+names[id];return;}if(coins<prices[id]){btn.textContent='金幣不足，還差 '+(prices[id]-coins)+' 元';return;}coins-=prices[id];owned.push(id);try{localStorage.setItem('dreamIslandsAccessories',JSON.stringify(owned));}catch(e){}updateWallet();btn.textContent='✓ 已收藏：'+names[id];}));
+// All purchased accessories are visible 3D meshes attached to the avatar.
+const accessoryMeshes=new THREE.Group();player.add(accessoryMeshes);
+const goldMatWear=new THREE.MeshStandardMaterial({color:0xf5c96a,metalness:.72,roughness:.28});
+const pinkWear=new THREE.MeshStandardMaterial({color:0xff8fc5,metalness:.18,roughness:.32,emissive:0x4a1730,emissiveIntensity:.18});
+const blueWear=new THREE.MeshStandardMaterial({color:0x9fe7ff,metalness:.22,roughness:.28,emissive:0x173b55,emissiveIntensity:.2});
+const wearableGroups={};
+function wearableGroup(id){const g=new THREE.Group();g.visible=false;accessoryMeshes.add(g);wearableGroups[id]=g;return g;}
+// Butterfly brooch on the front of the chest.
+{const g=wearableGroup('butterfly');const c=new THREE.Mesh(new THREE.SphereGeometry(.105,12,10),goldMatWear);c.position.set(0,3.12,.865);g.add(c);for(const side of [-1,1]){const w=new THREE.Mesh(new THREE.SphereGeometry(.22,14,10),pinkWear);w.scale.set(.95,.68,.42);w.position.set(side*.19,3.19,.84);w.rotation.z=side*-.38;g.add(w);const lo=new THREE.Mesh(new THREE.SphereGeometry(.16,12,9),blueWear);lo.scale.set(.82,.62,.38);lo.position.set(side*.13,3.00,.86);lo.rotation.z=side*.38;g.add(lo);}const sp=new THREE.Mesh(new THREE.OctahedronGeometry(.07,0),new THREE.MeshBasicMaterial({color:0xfff2b8}));sp.position.set(.32,3.34,.86);g.add(sp);}
+// Star hair clip and moon earrings.
+{const g=wearableGroup('star');const star=new THREE.Mesh(new THREE.OctahedronGeometry(.27,0),goldMatWear);star.position.set(.43,5.18,.18);g.add(star);}
+{const g=wearableGroup('moon');for(const side of [-1,1]){const hoop=new THREE.Mesh(new THREE.TorusGeometry(.17,.045,8,16),goldMatWear);hoop.position.set(side*.72,4.35,.1);g.add(hoop);const moonCharm=new THREE.Mesh(new THREE.TorusGeometry(.12,.055,8,16,Math.PI*1.55),new THREE.MeshStandardMaterial({color:0xbfe9ff,metalness:.4,roughness:.25}));moonCharm.position.set(side*.72,4.12,.12);g.add(moonCharm);}}
+// Shoes are placed around both feet.
+for(const id of ['sneakers','boots','sandals']){const g=wearableGroup(id);for(const side of [-1,1]){const shoe=new THREE.Mesh(new THREE.BoxGeometry(.72,.34,1.15),id==='boots'?new THREE.MeshStandardMaterial({color:0x665b87}):id==='sandals'?new THREE.MeshStandardMaterial({color:0xe6b66c}):new THREE.MeshStandardMaterial({color:0x7cc9e9}));shoe.position.set(side*.4,.27,.12);g.add(shoe);if(id==='sandals'){const strap=new THREE.Mesh(new THREE.BoxGeometry(.62,.12,.2),goldMatWear);strap.position.set(side*.4,.46,.12);g.add(strap);}}}
+// Perfume bottle clipped at the waist, with a colored liquid and cap.
+for(const id of ['lavender','ocean','peach']){const g=wearableGroup(id);const colors={lavender:0xb89be8,ocean:0x76cfe0,peach:0xf3a58f};const bottle=new THREE.Mesh(new THREE.CylinderGeometry(.2,.23,.55,12),new THREE.MeshStandardMaterial({color:colors[id],transparent:true,opacity:.9,metalness:.15,roughness:.2}));bottle.position.set(.72,1.65,.2);g.add(bottle);const cap=new THREE.Mesh(new THREE.CylinderGeometry(.12,.12,.16,8),goldMatWear);cap.position.set(.72,2.02,.2);g.add(cap);}
+let ownedAccessories=[];try{ownedAccessories=JSON.parse(localStorage.getItem('dreamIslandsAccessories')||'[]');if(!Array.isArray(ownedAccessories))ownedAccessories=[];}catch(e){}
+let equippedAccessory='';try{equippedAccessory=localStorage.getItem('dreamIslandsAccessoryEquipped')||'';}catch(e){}
+function applyAccessory(id){equippedAccessory=id||'';['star','moon','butterfly'].forEach(key=>{wearableGroups[key].visible=(key===equippedAccessory);});try{localStorage.setItem('dreamIslandsAccessoryEquipped',equippedAccessory);}catch(e){}}
+applyAccessory(equippedAccessory);
+const accessoryPrices={star:4,moon:5,butterfly:6},accessoryNames={star:'星星髮飾',moon:'月亮耳飾',butterfly:'蝴蝶胸針'};
+function refreshAccessoryButtons(){document.querySelectorAll('[data-accessory]').forEach(b=>{const id=b.dataset.accessory;b.textContent=ownedAccessories.includes(id)?(equippedAccessory===id?'✓ 正在佩戴：':'👒 佩戴：')+accessoryNames[id]:'🛍️ '+accessoryNames[id]+'（'+accessoryPrices[id]+' 金幣）';});}
+function buyOrEquipAccessory(id){if(!ownedAccessories.includes(id)){if(coins<accessoryPrices[id])return false;coins-=accessoryPrices[id];ownedAccessories.push(id);try{localStorage.setItem('dreamIslandsAccessories',JSON.stringify(ownedAccessories));}catch(e){}}applyAccessory(id);updateWallet();refreshAccessoryButtons();return true;}
+document.querySelectorAll('[data-accessory]').forEach(btn=>btn.addEventListener('click',()=>{const id=btn.dataset.accessory;if(!buyOrEquipAccessory(id)){btn.textContent='金幣不足，還差 '+(accessoryPrices[id]-coins)+' 元';setTimeout(refreshAccessoryButtons,1300);}}));
+// Shoes and perfume are also equipable; owned items are restored and can be equipped again.
+let ownedSpecial=[];try{ownedSpecial=JSON.parse(localStorage.getItem('dreamIslandsSpecialItems')||'[]');if(!Array.isArray(ownedSpecial))ownedSpecial=[];}catch(e){}
+let equippedSpecial='';try{equippedSpecial=localStorage.getItem('dreamIslandsSpecialEquipped')||'';}catch(e){}
+function applySpecial(id){equippedSpecial=id||'';['sneakers','boots','sandals','lavender','ocean','peach'].forEach(k=>{if(wearableGroups[k])wearableGroups[k].visible=(k===equippedSpecial);});try{localStorage.setItem('dreamIslandsSpecialEquipped',equippedSpecial);}catch(e){}}
+applyAccessory(equippedAccessory);applySpecial(equippedSpecial);
+const specialInfo={sneakers:['星雲運動鞋',6],boots:['月光短靴',8],sandals:['夏夜涼鞋',5],lavender:['月霧薰衣草香氛',5],ocean:['海風白茶香氛',5],peach:['蜜桃晚香香氛',6]};
+function refreshSpecialButtons(){document.querySelectorAll('[data-special]').forEach(b=>{const id=b.dataset.special,info=specialInfo[id];b.textContent=ownedSpecial.includes(id)?((equippedSpecial===id?'✓ 正在佩戴／使用：':'👟 裝備／使用：')+info[0]):'🛍️ '+info[0]+'（'+info[1]+' 金幣）';});}
+function buyOrEquipSpecial(id){const info=specialInfo[id];if(!ownedSpecial.includes(id)){if(coins<info[1])return false;coins-=info[1];ownedSpecial.push(id);try{localStorage.setItem('dreamIslandsSpecialItems',JSON.stringify(ownedSpecial));}catch(e){}}applySpecial(id);updateWallet();refreshSpecialButtons();return true;}
+document.querySelectorAll('[data-special]').forEach(btn=>btn.addEventListener('click',()=>{if(!buyOrEquipSpecial(btn.dataset.special)){btn.textContent='金幣不足，還差 '+(specialInfo[btn.dataset.special][1]-coins)+' 元';setTimeout(refreshSpecialButtons,1300);}}));
+refreshAccessoryButtons();refreshSpecialButtons();
 const outfitPrices={rose:5,ocean:8,gold:12};
 shopPanel.querySelectorAll('[data-outfit]').forEach(btn=>{const id=btn.dataset.outfit;const names={rose:'櫻花披風',ocean:'星海旅人',gold:'金色星辰'};function refresh(){btn.textContent=ownedOutfits.includes(id)?(equippedOutfit===id?'✓ 已穿上：':'👕 穿上：')+names[id]:'🛍️ '+names[id]+'（'+outfitPrices[id]+' 鑽石）';}refresh();btn.addEventListener('click',()=>{if(!ownedOutfits.includes(id)){if(crystals<outfitPrices[id]){btn.textContent='鑽石不足，還差 '+(outfitPrices[id]-crystals)+' 顆';setTimeout(refresh,1300);return;}crystals-=outfitPrices[id];ownedOutfits.push(id);try{localStorage.setItem('dreamIslandsOutfits',JSON.stringify(ownedOutfits));}catch(e){}}equipOutfit(id);updateWallet();shopPanel.querySelectorAll('[data-outfit]').forEach(b=>{const k=b.dataset.outfit;b.textContent=ownedOutfits.includes(k)?(equippedOutfit===k?'✓ 已穿上：':'👕 穿上：')+names[k]:'🛍️ '+names[k]+'（'+outfitPrices[k]+' 鑽石）';});});});
 document.querySelectorAll('[data-special]').forEach(btn=>btn.addEventListener('click',()=>{const id=btn.dataset.special;const info={sneakers:['星雲運動鞋',6],boots:['月光短靴',8],sandals:['夏夜涼鞋',5],lavender:['月霧薰衣草香氛',5],ocean:['海風白茶香氛',5],peach:['蜜桃晚香香氛',6]}[id];let owned=[];try{owned=JSON.parse(localStorage.getItem('dreamIslandsSpecialItems')||'[]');}catch(e){}if(owned.includes(id)){btn.textContent='✓ 已收藏：'+info[0];return;}if(coins<info[1]){btn.textContent='金幣不足，還差 '+(info[1]-coins)+' 元';return;}coins-=info[1];owned.push(id);try{localStorage.setItem('dreamIslandsSpecialItems',JSON.stringify(owned));}catch(e){}updateWallet();btn.textContent='✓ 已收藏：'+info[0];}));
