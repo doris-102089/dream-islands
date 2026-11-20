@@ -66,7 +66,27 @@
 <div id="furniturePanel"><button data-furniture="chair">🪑 木椅</button><button data-furniture="table">🪵 小桌</button><button data-furniture="sofa">🛋️ 沙發</button><button data-furniture="bed">🛏️ 床</button><button data-furniture="lamp">🏮 庭院燈</button><button data-furniture="plant">🪴 盆栽</button><button data-furniture="woodblock">🧱 木建材</button></div>
 <div id="zone">夢境草原・月光之境</div><button id="musicBtn">🎵 選擇音樂</button><button id="ambienceBtn">🌬️ 環境音：關</button><input id="musicFile" type="file" accept="audio/*">
 <script type="module">
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+// Load Three.js with a second CDN as a fallback. A failed first import
+// must not leave the game stuck on its loading screen forever.
+const loadingScreen=document.querySelector('#loading');
+let THREE=null,loadErrors=[];
+for (const source of [
+  'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js',
+  'https://unpkg.com/three@0.160.0/build/three.module.js'
+]) {
+  try { THREE=await import(source); break; }
+  catch(error) { loadErrors.push(source+'：'+(error?.message||String(error))); }
+}
+if (!THREE) {
+  loadingScreen.style.display='grid';
+  loadingScreen.style.padding='28px';
+  loadingScreen.style.textAlign='center';
+  loadingScreen.style.lineHeight='1.7';
+  loadingScreen.innerHTML='遊戲引擎暫時載入失敗 😥<br><span style="font-size:14px;font-weight:500">請確認網路連線後重新整理頁面。若使用檔案預覽器，請改用 Chrome 開啟。</span><br><button id="reloadGame" style="margin-top:18px;padding:11px 20px;border:1px solid white;border-radius:18px;background:#ffffff30;color:white;font-weight:800">重新載入</button>';
+  document.querySelector('#reloadGame').addEventListener('click',()=>location.reload());
+  console.error('Three.js 載入失敗',loadErrors);
+} else {
+try {
 const mount=document.querySelector('#game'),scene=new THREE.Scene();
 scene.background=new THREE.Color(0x171b43);
 scene.fog=new THREE.FogExp2(0x30365f,.00072);
@@ -929,5 +949,15 @@ function animate(){
 }
 animate();document.querySelector('#loading').style.display='none';
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+} catch(error) {
+  console.error('夢境群島初始化失敗：',error);
+  loadingScreen.style.display='grid';
+  loadingScreen.style.padding='28px';
+  loadingScreen.style.textAlign='center';
+  loadingScreen.style.lineHeight='1.7';
+  loadingScreen.innerHTML='遊戲啟動時遇到問題 😥<br><span style="font-size:14px;font-weight:500">請重新整理頁面再試一次。若持續發生，請截圖這個畫面傳給我。</span><br><button id="reloadGame" style="margin-top:18px;padding:11px 20px;border:1px solid white;border-radius:18px;background:#ffffff30;color:white;font-weight:800">重新載入</button>';
+  document.querySelector('#reloadGame').addEventListener('click',()=>location.reload());
+}
+}
 </script>
 </body></html>
