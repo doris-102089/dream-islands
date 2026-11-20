@@ -97,18 +97,19 @@ const cityX=510,cityZ=0,cityTop=6;
 const mallCenterX=cityX-8,mallCenterZ=55,mallFrontZ=mallCenterZ+38;
 function groundAt(x,z){
  if(Math.hypot(x-cityX,z-cityZ)<112){
-  // Two broad escalator/ramp lanes connect the entrance level to the upper gallery.
+  // The player climbs the two visible sloped walkways by physically walking along them.
+  // Height changes continuously along the walkway; there is no floor teleport trigger.
   for(const rx of [mallCenterX-23,mallCenterX+23]){
-   if(Math.abs(x-rx)<5.8 && z>=mallCenterZ-10 && z<=mallFrontZ-1){
+   if(Math.abs(x-rx)<3.25 && z>=mallCenterZ-10 && z<=mallFrontZ-1){
     const t=THREE.MathUtils.clamp((mallFrontZ-1-z)/(mallFrontZ-1-(mallCenterZ-10)),0,1);
     return cityTop+12*t;
    }
   }
-  const inside=Math.abs(x-mallCenterX)<46 && z>mallCenterZ-37 && z<mallCenterZ+37;
-  if(inside){
-   // Ground-floor corridors stay level. Upper galleries are visual balconies only;
-   // players reach the upper level only by using the two continuous ramp lanes above.
-  }
+  // Upper-level galleries are real walkable floor regions, connected to the ramp tops.
+  const upperZ=Math.abs(z-mallCenterZ)<37;
+  const upperX=Math.abs(x-mallCenterX)>24.5 && Math.abs(x-mallCenterX)<45.5;
+  const upperFrontBack=Math.abs(z-mallCenterZ)>=18 && Math.abs(z-mallCenterZ)<37 && Math.abs(x-mallCenterX)<45;
+  if((upperZ&&upperX)||upperFrontBack) return cityTop+12;
   return cityTop;
  }
  return heightAt(x,z);
@@ -332,6 +333,11 @@ for(let side of [-1,1]){
   tread.rotation.x=angle;
  }
 }
+// Upper ramp landings join the side galleries without a gap.
+for(const side of [-1,1]){
+ addMesh(new THREE.BoxGeometry(4.2,.65,8),mallFloorMat,mallX+side*26,cityTop+11.7,mallZ-10);
+ addMesh(new THREE.BoxGeometry(4.2,.35,8),mallMetal,mallX+side*26,cityTop+12.15,mallZ-10);
+}
 // Ground-floor shopfronts: real open corridors, counters, racks, signs and warm interior lighting.
 const storeColors=[0xc77fa3,0x7ca9bd,0xd2a66f,0x91aa83,0x9d8bc4,0xd18b75];
 for(let side of [-1,1]){
@@ -414,6 +420,45 @@ addShopkeeper(mallX+27,mallZ+5,'food','🍰 美食甜點專櫃','🍰 美食店�
 addShopkeeper(mallX-25,mallZ-20,'accessory','✨ 星光飾品專櫃','✨ 飾品店員',0xc69be8);
 addShopkeeper(mallX+27,mallZ-20,'perfume','🪻 香氛專櫃','🪻 香氛店員',0xe58eae);
 addShopkeeper(mallX-34,mallZ+27,'shoes','👟 鞋履專門店','👟 鞋店店員',0x8bb6a5);
+// Department display islands: each clerk has a decorated, recognizable counter and sign.
+function addDepartmentDisplay(x,z,color,title,kind){
+ const accent=new THREE.MeshStandardMaterial({color,roughness:.48,metalness:.12,emissive:color,emissiveIntensity:.08});
+ const cream=new THREE.MeshStandardMaterial({color:0xf4e7d5,roughness:.72});
+ addMesh(new THREE.BoxGeometry(9,.45,5.2),cream,x,cityTop+.45,z);
+ addMesh(new THREE.BoxGeometry(7.8,1.25,.32),accent,x,cityTop+1.25,z-2.25);
+ addMesh(new THREE.BoxGeometry(7.8,.18,4.6),accent,x,cityTop+1.05,z);
+ // Decorative display plinths and small product silhouettes, kept low and outside the walking lane.
+ for(let i=0;i<3;i++){
+  const px=x-2.6+i*2.6;
+  addMesh(new THREE.BoxGeometry(1.25,.75,1.15),cream,px,cityTop+1.7,z+.35);
+  if(kind==='shoes'){
+   const shoe=addMesh(new THREE.SphereGeometry(.48,12,8),accent,px,cityTop+2.2,z+.35,1.35,.42,.72);shoe.rotation.y=-.25;
+  }else if(kind==='perfume'){
+   addMesh(new THREE.CylinderGeometry(.28,.34,.8,12),accent,px,cityTop+2.45,z+.35);
+   addMesh(new THREE.CylinderGeometry(.16,.16,.22,8),mallMetal,px,cityTop+2.95,z+.35);
+  }else if(kind==='food'){
+   addMesh(new THREE.SphereGeometry(.48,12,8),accent,px,cityTop+2.35,z+.35,1,.72,1);
+   addMesh(new THREE.TorusGeometry(.28,.07,6,14),mallWarm,px,cityTop+2.68,z+.35);
+  }else if(kind==='accessory'){
+   addMesh(new THREE.TorusGeometry(.38,.11,8,18),accent,px,cityTop+2.45,z+.35);
+   addMesh(new THREE.SphereGeometry(.18,10,8),mallWarm,px,cityTop+2.45,z+.35);
+  }else{
+   addMesh(new THREE.SphereGeometry(.42,12,8),accent,px,cityTop+2.4,z+.35);
+   addMesh(new THREE.TorusGeometry(.3,.08,6,14),mallWarm,px,cityTop+2.75,z+.35);
+  }
+ }
+ const canvas=document.createElement('canvas');canvas.width=512;canvas.height=128;
+ const ctx=canvas.getContext('2d');ctx.fillStyle='#fff8ed';ctx.fillRect(0,0,512,128);ctx.fillStyle='#493d43';ctx.font='bold 42px sans-serif';ctx.textAlign='center';ctx.fillText(title,256,82);
+ const tex=new THREE.CanvasTexture(canvas);
+ addMesh(new THREE.PlaneGeometry(8,2),new THREE.MeshBasicMaterial({map:tex,transparent:true,side:THREE.DoubleSide}),x,cityTop+4.1,z-2.65);
+ const lamp=new THREE.PointLight(color,.55,12);lamp.position.set(x,cityTop+4,z);scene.add(lamp);
+}
+addDepartmentDisplay(mallX+8,mallZ+11,0xc77fa3,'星光彩妝','makeup');
+addDepartmentDisplay(mallX-25,mallZ+12,0x83a9d9,'服飾精品','fashion');
+addDepartmentDisplay(mallX+27,mallZ+12,0xe6a76d,'美食甜點','food');
+addDepartmentDisplay(mallX-25,mallZ-13,0xc69be8,'星光飾品','accessory');
+addDepartmentDisplay(mallX+27,mallZ-13,0xe58eae,'香氛選物','perfume');
+addDepartmentDisplay(mallX-34,mallZ+33,0x8bb6a5,'鞋履專門','shoes');
 let activeShop='makeup';
 // Five additional explorable districts: each has its own landmark, lights and atmosphere.
 const extraPlaces=[
@@ -664,7 +709,7 @@ const body=new THREE.Mesh(new THREE.CapsuleGeometry(.85,2,4,8),bodyMat);body.pos
 const headMat=mat(0xffdfc6);const head=new THREE.Mesh(new THREE.SphereGeometry(.78,20,16),headMat);head.position.y=4.55;player.add(head);
 const lipMat=new THREE.MeshStandardMaterial({color:0xb85d79,roughness:.65});const lips=new THREE.Mesh(new THREE.SphereGeometry(.13,12,8),lipMat);lips.scale.set(1.25,.42,.35);lips.position.set(0,4.31,.735);player.add(lips);
 const cheekMat=new THREE.MeshStandardMaterial({color:0xf39ab0,transparent:true,opacity:.0,roughness:1});const cheekL=new THREE.Mesh(new THREE.SphereGeometry(.12,12,8),cheekMat),cheekR=cheekL.clone();cheekL.scale.set(1.2,.65,.25);cheekR.scale.copy(cheekL.scale);cheekL.position.set(-.39,4.43,.66);cheekR.position.set(.39,4.43,.66);player.add(cheekL,cheekR);
-const cape=new THREE.Mesh(new THREE.ConeGeometry(1.4,3.4,9),new THREE.MeshStandardMaterial({color:0xe8c8ff,side:THREE.DoubleSide}));cape.position.set(0,2.6,-.9);cape.rotation.x=-Math.PI/2.4;player.add(cape);
+// Removed the old large triangular cape mesh from the character.
 const legGeo=new THREE.CapsuleGeometry(.28,.85,3,6),legL=new THREE.Mesh(legGeo,bodyMat),legR=legL.clone();legL.position.set(-.4,.7,0);legR.position.set(.4,.7,0);player.add(legL,legR);
 player.position.set(0,heightAt(0,0),0);scene.add(player);
 
@@ -835,8 +880,15 @@ function animate(){
  if(!driving){
   const dir=forward.clone().multiplyScalar(-moveZ).add(right.multiplyScalar(moveX));
   if(dir.lengthSq()>.001&&stamina>0){dir.normalize();stamina=Math.max(0,stamina-dt*2.2);updateStamina();const nx=player.position.x+dir.x*dt*15,nz=player.position.z+dir.z*dt*15;let blocked=false;for(const b of blockers){const dx=nx-b.x,dz=nz-b.z,dist=Math.hypot(dx,dz),min=b.r+1.8;if(dist<min){if(b.kind==='tree'){breakTree(b,dx,dz);continue;}blocked=true;const push=(min-dist)/(dist||1);player.position.x+=dx*push;player.position.z+=dz*push;}}if(!blocked){player.position.x=nx;player.position.z=nz;}player.rotation.y=Math.atan2(dir.x,dir.z);walk+=dt*10;legL.rotation.x=Math.sin(walk)*.5;legR.rotation.x=-Math.sin(walk)*.5;}
-  if(moveX===0&&moveZ===0) {stamina=Math.min(staminaMax,stamina+dt*0.55);updateStamina();} const ground=groundAt(player.position.x,player.position.z);vy-=27*dt;player.position.y+=vy*dt;
-  if(player.position.y<ground){player.position.y=ground;vy=0;onGround=true;}
+  if(moveX===0&&moveZ===0) {stamina=Math.min(staminaMax,stamina+dt*0.55);updateStamina();} const ground=groundAt(player.position.x,player.position.z);
+  const mallGround=Math.hypot(player.position.x-cityX,player.position.z-cityZ)<112;
+  if(mallGround && onGround){
+   // Follow the continuous ramp/deck surface directly while grounded, avoiding gravity lag and sudden floor snaps.
+   player.position.y=ground;vy=0;
+  }else{
+   vy-=27*dt;player.position.y+=vy*dt;
+   if(player.position.y<ground){player.position.y=ground;vy=0;onGround=true;}
+  }
   player.position.x=THREE.MathUtils.clamp(player.position.x,-365,625);player.position.z=THREE.MathUtils.clamp(player.position.z,-365,365);
   activeX=player.position.x;activeZ=player.position.z;activeY=player.position.y;
  }else{
