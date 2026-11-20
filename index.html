@@ -97,19 +97,18 @@ const cityX=510,cityZ=0,cityTop=6;
 const mallCenterX=cityX-8,mallCenterZ=55,mallFrontZ=mallCenterZ+38;
 function groundAt(x,z){
  if(Math.hypot(x-cityX,z-cityZ)<112){
-  // The player climbs the two visible sloped walkways by physically walking along them.
-  // Height changes continuously along the walkway; there is no floor teleport trigger.
+  // Two broad escalator/ramp lanes connect the entrance level to the upper gallery.
   for(const rx of [mallCenterX-23,mallCenterX+23]){
-   if(Math.abs(x-rx)<3.25 && z>=mallCenterZ-10 && z<=mallFrontZ-1){
+   if(Math.abs(x-rx)<5.8 && z>=mallCenterZ-10 && z<=mallFrontZ-1){
     const t=THREE.MathUtils.clamp((mallFrontZ-1-z)/(mallFrontZ-1-(mallCenterZ-10)),0,1);
     return cityTop+12*t;
    }
   }
-  // Upper-level galleries are real walkable floor regions, connected to the ramp tops.
-  const upperZ=Math.abs(z-mallCenterZ)<37;
-  const upperX=Math.abs(x-mallCenterX)>24.5 && Math.abs(x-mallCenterX)<45.5;
-  const upperFrontBack=Math.abs(z-mallCenterZ)>=18 && Math.abs(z-mallCenterZ)<37 && Math.abs(x-mallCenterX)<45;
-  if((upperZ&&upperX)||upperFrontBack) return cityTop+12;
+  const inside=Math.abs(x-mallCenterX)<46 && z>mallCenterZ-37 && z<mallCenterZ+37;
+  if(inside){
+   // Ground-floor corridors stay level. Upper galleries are visual balconies only;
+   // players reach the upper level only by using the two continuous ramp lanes above.
+  }
   return cityTop;
  }
  return heightAt(x,z);
@@ -332,11 +331,6 @@ for(let side of [-1,1]){
   const tread=addMesh(new THREE.BoxGeometry(5.2,.12,.42),mallMetal,ex,y,z);
   tread.rotation.x=angle;
  }
-}
-// Upper ramp landings join the side galleries without a gap.
-for(const side of [-1,1]){
- addMesh(new THREE.BoxGeometry(4.2,.65,8),mallFloorMat,mallX+side*26,cityTop+11.7,mallZ-10);
- addMesh(new THREE.BoxGeometry(4.2,.35,8),mallMetal,mallX+side*26,cityTop+12.15,mallZ-10);
 }
 // Ground-floor shopfronts: real open corridors, counters, racks, signs and warm interior lighting.
 const storeColors=[0xc77fa3,0x7ca9bd,0xd2a66f,0x91aa83,0x9d8bc4,0xd18b75];
@@ -880,15 +874,8 @@ function animate(){
  if(!driving){
   const dir=forward.clone().multiplyScalar(-moveZ).add(right.multiplyScalar(moveX));
   if(dir.lengthSq()>.001&&stamina>0){dir.normalize();stamina=Math.max(0,stamina-dt*2.2);updateStamina();const nx=player.position.x+dir.x*dt*15,nz=player.position.z+dir.z*dt*15;let blocked=false;for(const b of blockers){const dx=nx-b.x,dz=nz-b.z,dist=Math.hypot(dx,dz),min=b.r+1.8;if(dist<min){if(b.kind==='tree'){breakTree(b,dx,dz);continue;}blocked=true;const push=(min-dist)/(dist||1);player.position.x+=dx*push;player.position.z+=dz*push;}}if(!blocked){player.position.x=nx;player.position.z=nz;}player.rotation.y=Math.atan2(dir.x,dir.z);walk+=dt*10;legL.rotation.x=Math.sin(walk)*.5;legR.rotation.x=-Math.sin(walk)*.5;}
-  if(moveX===0&&moveZ===0) {stamina=Math.min(staminaMax,stamina+dt*0.55);updateStamina();} const ground=groundAt(player.position.x,player.position.z);
-  const mallGround=Math.hypot(player.position.x-cityX,player.position.z-cityZ)<112;
-  if(mallGround && onGround){
-   // Follow the continuous ramp/deck surface directly while grounded, avoiding gravity lag and sudden floor snaps.
-   player.position.y=ground;vy=0;
-  }else{
-   vy-=27*dt;player.position.y+=vy*dt;
-   if(player.position.y<ground){player.position.y=ground;vy=0;onGround=true;}
-  }
+  if(moveX===0&&moveZ===0) {stamina=Math.min(staminaMax,stamina+dt*0.55);updateStamina();} const ground=groundAt(player.position.x,player.position.z);vy-=27*dt;player.position.y+=vy*dt;
+  if(player.position.y<ground){player.position.y=ground;vy=0;onGround=true;}
   player.position.x=THREE.MathUtils.clamp(player.position.x,-365,625);player.position.z=THREE.MathUtils.clamp(player.position.z,-365,365);
   activeX=player.position.x;activeZ=player.position.z;activeY=player.position.y;
  }else{
